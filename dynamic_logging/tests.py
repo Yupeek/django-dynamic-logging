@@ -3,13 +3,13 @@ import datetime
 import doctest
 
 from django.test.testcases import TestCase
-
-import dynamic_logging.models
-from dynamic_logging.models import Config, Trigger, Scheduler
 from django.utils import timezone
 
+from dynamic_logging.models import Config, Scheduler, Trigger
+
+
 def load_tests(loader, tests, ignore):
-    tests.addTests(doctest.DocTestSuite(dynamic_logging.tests))
+    tests.addTests(doctest.DocTestSuite())
     return tests
 
 
@@ -17,16 +17,14 @@ def get_tz_date(dmy):
     """
     return a datetime with given day
     >>> get_tz_date('01-04-2017')
-    datetime.datetime(2017, 4, 1, 0, 0)
+    datetime.datetime(2017, 4, 1, 0, 0, tzinfo=<UTC>)
     """
     ret = datetime.datetime.strptime(dmy, '%d-%m-%Y')
     tz = timezone.get_current_timezone()
-
     return tz.localize(ret)
 
 
 class SchedulerTest(TestCase):
-
     def setUp(self):
         c = Config.objects.create(name='nothing logged')
         dates = [
@@ -40,7 +38,10 @@ class SchedulerTest(TestCase):
             ('16-02-2017', '25-02-2017'),  # 6|                                   ============
         ]
         for i, (start, end) in enumerate(dates):
-            t = Trigger.objects.create(name='%d' % i, start_date=get_tz_date(start), end_date=get_tz_date(end), config=c)
+            Trigger.objects.create(name='%d' % i,
+                                   start_date=get_tz_date(start),
+                                   end_date=get_tz_date(end),
+                                   config=c)
         self.scheduler = Scheduler()
 
     def assertTriggerForDate(self, date, expected_tname, expected_next_wakeup, current=None):
@@ -68,6 +69,4 @@ class SchedulerTest(TestCase):
         self.assertTriggerForDate('17-02-2017', 'default settings', '25-02-2017', '6')
         self.assertTriggerForDate('17-02-2017', 'default settings', None)
         self.assertTriggerForDate('27-02-2017', 'default settings', None)
-
-
 

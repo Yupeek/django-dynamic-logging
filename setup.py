@@ -44,6 +44,7 @@ setup(
     url='https://github.com/Yupeek/django-dynamic-logging',
     tests_require=tests_require,
     install_requires=[
+        'pytz',
     ],
     packages=[
         'dynamic_logging',

@@ -5,7 +5,6 @@ from django.conf.urls import url
 
 from . import views
 
-
 urlpatterns = [
     url(r'^error401/$', views.error401),
     url(r'^error500/$', views.raise_view),

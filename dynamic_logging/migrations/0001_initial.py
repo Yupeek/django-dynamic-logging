@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import django.utils.timezone
 from django.db import migrations, models
-import datetime
-from django.utils.timezone import utc
+
+import dynamic_logging.models
 
 
 class Migration(migrations.Migration):
@@ -15,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Config',
             fields=[
-                ('id', models.AutoField(serialize=False, verbose_name='ID', primary_key=True, auto_created=True)),
+                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID', primary_key=True)),
                 ('name', models.CharField(max_length=255)),
                 ('config_json', models.TextField()),
             ],
@@ -23,10 +24,10 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Trigger',
             fields=[
-                ('id', models.AutoField(serialize=False, verbose_name='ID', primary_key=True, auto_created=True)),
+                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID', primary_key=True)),
                 ('name', models.CharField(max_length=255)),
-                ('start_date', models.DateTimeField(auto_now=True)),
-                ('end_date', models.DateTimeField(default=datetime.datetime(2017, 1, 30, 18, 8, 57, 769201, tzinfo=utc))),
+                ('start_date', models.DateTimeField(default=django.utils.timezone.now)),
+                ('end_date', models.DateTimeField(default=dynamic_logging.models.now_plus_2hours)),
                 ('config', models.ForeignKey(related_name='triggers', to='dynamic_logging.Config')),
             ],
             options={

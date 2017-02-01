@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import datetime
+import functools
 import json
+import logging
 import threading
 
 from django.conf import settings
 from django.db import models
 from django.db.models.query_utils import Q
 from django.utils import timezone
-import functools
-
-import logging
-
 from django.utils.six import python_2_unicode_compatible
 
 logger = logging.getLogger(__name__)
@@ -131,7 +129,7 @@ class Trigger(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
 
     start_date = models.DateTimeField(default=timezone.now)
-    end_date = models.DateTimeField(default=now_plus_2hours())
+    end_date = models.DateTimeField(default=now_plus_2hours)
 
     config = models.ForeignKey('Config', related_name='triggers')
 

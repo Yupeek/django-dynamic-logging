@@ -86,6 +86,7 @@ DATABASES = {
     }
 }
 
+TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
