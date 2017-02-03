@@ -20,8 +20,9 @@ def raise_view(request):
 
 def log_somthing(request, level='debug', loggername=__name__):
     level = level.upper()
-    if level not in ['DEBUG', 'INFO', 'WARNING','ERROR']:
+    if level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
         raise Exception("error: level not valid")
+    level = getattr(logging, level)
     logger = logging.getLogger(loggername)
     logger.log(level, "message from view", extra={'level': level, 'loggername': loggername})
     return HttpResponse("ok. logged to %s" % loggername)

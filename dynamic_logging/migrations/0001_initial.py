@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Config',
             fields=[
-                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID', primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', auto_created=True, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=255)),
                 ('config_json', models.TextField()),
             ],
@@ -24,11 +24,11 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Trigger',
             fields=[
-                ('id', models.AutoField(auto_created=True, serialize=False, verbose_name='ID', primary_key=True)),
+                ('id', models.AutoField(verbose_name='ID', auto_created=True, primary_key=True, serialize=False)),
                 ('name', models.CharField(max_length=255)),
-                ('start_date', models.DateTimeField(default=django.utils.timezone.now)),
-                ('end_date', models.DateTimeField(default=dynamic_logging.models.now_plus_2hours)),
-                ('config', models.ForeignKey(related_name='triggers', to='dynamic_logging.Config')),
+                ('start_date', models.DateTimeField(null=True, default=django.utils.timezone.now)),
+                ('end_date', models.DateTimeField(null=True, default=dynamic_logging.models.now_plus_2hours)),
+                ('config', models.ForeignKey(to='dynamic_logging.Config', related_name='triggers')),
             ],
             options={
                 'get_latest_by': 'start_date',
