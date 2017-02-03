@@ -31,6 +31,7 @@ def get_tz_date(dmy):
 class SchedulerTest(TestCase):
     def setUp(self):
         main_scheduler.disable()
+        assert not main_scheduler.is_enabled()
         c = Config.objects.create(name='nothing logged')
         dates = [
             # #                            #  | jan  | fevrier
@@ -182,15 +183,22 @@ class TestSchedulerTimers(TestCase):
         t.delete()
         self.assertIsNone(main_scheduler.next_timer)
 
+    def test_wake(self):
+        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
+        now_plus_4h = timezone.now() + datetime.timedelta(hours=4)
+        # no trigger in fixtures
+        self.assertIsNone(main_scheduler.next_timer)
+        t = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus_2h, end_date=now_plus_4h)
+
+        self.assertEqual(main_scheduler.current_trigger, Trigger.default())
+        main_scheduler.wake(t, now_plus_2h)
+        self.assertEqual(main_scheduler.current_trigger, t)
+
 
 class ConfigApplyTest(TestCase):
-    def setUp(self):
-        MockHandler.messages.clear()
-
     def tearDown(self):
         # reset the default config
         Config.default().apply()
-        MockHandler.messages.clear()
 
     def test_default_config_by_default(self):
         loggers = get_loggers()
@@ -242,11 +250,12 @@ class ConfigApplyTest(TestCase):
                 self.assertEqual(logger.handlers, [])
 
     def test_messages_passed(self):
-        self.assertEqual(MockHandler.messages['debug'], [])
-        logger = logging.getLogger('testproject.testapp')
-        logger.debug("couocu")
-        # handler not attached to this logger
-        self.assertEqual(MockHandler.messages['debug'], [])
+        with MockHandler.capture() as messages:
+            self.assertEqual(messages['debug'], [])
+            logger = logging.getLogger('testproject.testapp')
+            logger.debug("couocu")
+            # handler not attached to this logger
+            self.assertEqual(messages['debug'], [])
         # setup new config
         cfg = Config(name='empty')
         cfg.config = {"loggers": {
@@ -262,11 +271,12 @@ class ConfigApplyTest(TestCase):
         cfg.apply()
         # log debug ineficient
         logger.debug("couocu")
-        self.assertEqual(MockHandler.messages['debug'], [])
-        self.assertEqual(MockHandler.messages['warning'], [])
-        logger.warn("hey")
-        self.assertEqual(MockHandler.messages['debug'], [])
-        self.assertEqual(MockHandler.messages['warning'], ['hey'])
+        with MockHandler.capture() as messages:
+            self.assertEqual(messages['debug'], [])
+            self.assertEqual(messages['warning'], [])
+            logger.warn("hey")
+            self.assertEqual(messages['debug'], [])
+            self.assertEqual(messages['warning'], ['hey'])
 
     def test_config_reversed(self):
         logger = logging.getLogger('testproject.testapp')
@@ -285,14 +295,14 @@ class ConfigApplyTest(TestCase):
         }}
         cfg.apply()
         # log debug ineficient
-        self.assertEqual(MockHandler.messages['warning'], [])
+        with MockHandler.capture() as messages:
+            logger.warn("hey")
+            self.assertEqual(messages['warning'], ['hey'])
+            logger.warn("hey")
+            self.assertEqual(messages['warning'], ['hey', 'hey'])
 
-        logger.warn("hey")
-        self.assertEqual(MockHandler.messages['warning'], ['hey'])
-        logger.warn("hey")
-        self.assertEqual(MockHandler.messages['warning'], ['hey', 'hey'])
-
-        # default config does not add to mockhandler
-        Config.default().apply()
-        logger.warn("hey")
-        self.assertEqual(MockHandler.messages['warning'], ['hey', 'hey'])
+        with MockHandler.capture() as messages:
+            # default config does not add to mockhandler
+            Config.default().apply()
+            logger.warn("hey")
+            self.assertEqual(messages['warning'], [])

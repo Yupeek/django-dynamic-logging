@@ -115,7 +115,7 @@ class Scheduler(object):
     def set_next_wake(self, trigger, at):
         logger.debug("next trigger to enable : %s at %s", trigger, at, extra={'next_date': at})
         with self._lock:
-            self.reset()
+            self.reset_timer()
             interval = (at - timezone.now()).total_seconds()
             self.next_timer = threading.Timer(interval,
                                               functools.partial(self.wake, trigger=trigger, date=at))
@@ -127,11 +127,23 @@ class Scheduler(object):
                 self.next_timer.start()
 
     def reset(self):
+        """
+        reset the logging to the default settings. disable the timer to change it
+        :return:
+        """
+        with self._lock:
+            self.reset_timer()
+            self.current_trigger = Trigger.default()
+
+    def reset_timer(self):
+        """
+        reset the timer
+        :return:
+        """
         with self._lock:
             if self.next_timer is not None:
                 self.next_timer.cancel()
                 self.next_timer = None
-                self.current_trigger = Trigger.default()
 
     def activate_current(self):
         """
@@ -154,7 +166,7 @@ class Scheduler(object):
         """
         if self._enabled:
             with self._lock:
-                self.reset()
+                self.reset_timer()
                 current = self.activate_current()
                 trigger, at = self.get_next_wake(current=current)
                 if at:
@@ -178,7 +190,8 @@ class Scheduler(object):
             # get the next trigger valid at the current expected date
             # we don't use timezone.now() to prevent the case where threading.Timer wakeup some ms befor the expected
             # date
-            self.set_next_wake(next_trigger, at)
+            if at:
+                self.set_next_wake(next_trigger, at)
 
     def apply(self, trigger):
         if self.current_trigger != trigger:

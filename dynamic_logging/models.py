@@ -63,17 +63,6 @@ class Trigger(models.Model):
     def __str__(self):
         return 'trigger %s from %s to %s for config %s' % (self.name, self.start_date, self.end_date, self.config.name)
 
-    def is_active(self, date=None):
-        """
-        return True if the current trigger is active at the given date. if no date is given, current date is used
-        :param date: the date to check or None for now()
-        :return:
-        :rtype: bool
-        """
-        date = date or timezone.now()
-        start_date, end_date = self.start_date, self.end_date
-        return (start_date <= date or end_date is None) and (end_date >= date or end_date is None)
-
     def apply(self):
         self.config.apply(self)
 

@@ -18,7 +18,7 @@ class DynamicLoggingConfig(AppConfig):
         from dynamic_logging.scheduler import main_scheduler
         try:
             main_scheduler.reload()
-        except OperationalError:
+        except OperationalError:  # pragma: nocover
             pass  # no trigger table exists atm. we don't care since there is no Trigger to pull.
         # setup signals for Trigger changes. it will reload the current trigger and next one
         from .signals import reload_timers_on_trigger_change

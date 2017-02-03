@@ -1,10 +1,13 @@
 import logging
 
+from django.forms.forms import Form
 from django.http.response import HttpResponse
 from django.shortcuts import render
 
 
 # Create your views here.
+from django.views.generic.edit import FormView
+
 
 def error401(request):
     return HttpResponse(status=401)
@@ -26,3 +29,4 @@ def log_somthing(request, level='debug', loggername=__name__):
     logger = logging.getLogger(loggername)
     logger.log(level, "message from view", extra={'level': level, 'loggername': loggername})
     return HttpResponse("ok. logged to %s" % loggername)
+
