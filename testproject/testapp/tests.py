@@ -5,6 +5,7 @@ from django.test import TestCase
 # Create your tests here.
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config
+from dynamic_logging.scheduler import main_scheduler
 
 
 class TestPages(TestCase):
@@ -55,8 +56,15 @@ class TestAdminContent(TestCase):
         u.set_password('password')
         u.save()
         self.client.login(username='admin', password='password')
+        main_scheduler.reload()
+
+    def tearDown(self):
+        main_scheduler.reset()
 
     def test_logging_in_admin(self):
         response = self.client.get('/admin/')
         self.assertContains(response, 'Trigger')
 
+    def test_config_list(self):
+        response = self.client.get('/admin/dynamic_logging/config/')
+        self.assertContains(response, 'default settings')

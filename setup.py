@@ -11,7 +11,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-version = dynamic_logging.__VERSION__
+version = dynamic_logging.__version__
 
 if 'DJANGO_SETTINGS_MODULE' not in os.environ:
     os.environ['DJANGO_SETTINGS_MODULE'] = 'testsettings'

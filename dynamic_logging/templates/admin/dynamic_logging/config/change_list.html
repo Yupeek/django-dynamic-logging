@@ -1,0 +1,41 @@
+{% extends 'admin/change_list.html' %}
+{% load i18n  dynamic_logging %}
+{% block content %}
+    <div class="config_display" >
+        <fieldset class="collapse collapsed" id="current_config">
+            <h2>{% trans "Current Config" %}</h2>
+            <p>
+                {% if current_trigger.config_id %}
+                    <a href="{% url 'admin:dynamic_logging_config_change' current_trigger.config_id%}">{{ current_trigger.config.name }}</a>
+                {% endif %}
+                {% trans "since" %} <i>{{ current_trigger.start_date|default:"startup" }}</i> {% trans 'to' %} <i>{{ current_trigger.end_date|default:'shutdown' }}</i>
+                ({%  trans "triggered by" %} <a href="{%  url 'admin:dynamic_logging_trigger_change' current_trigger.pk %}">
+                    {{ current_trigger.name }}
+                </a> )
+            </p>
+            {%  display_config current_trigger.config %}
+        </fieldset>
+
+        <fieldset class="collapse collapsed" id="next_config">
+            <h2>{% trans "Next Config" %}</h2>
+            {%  if next_trigger %}
+
+                <p>
+                    {% if next_trigger.config_id %}
+                        <a href="{% url 'admin:dynamic_logging_config_change' next_trigger.config_id%}">{{ next_trigger.config.name }}</a>
+                    {% endif %}
+                    {% trans "since" %} <i>{{ next_trigger.start_date|default:"startup" }}</i> {% trans 'to' %} <i>{{ next_trigger.end_date|default:'shutdown' }}</i>
+                    ({%  trans "triggered by" %} <a href="{%  url 'admin:dynamic_logging_trigger_change' next_trigger.pk %}">
+                        {{ next_trigger.name }}
+                    </a> )
+                </p>
+                {%  display_config next_trigger.config %}
+            {% else %}
+                <p>{% trans "no next trigger" %}</p>
+            {% endif %}
+        </fieldset>
+    </div>
+
+
+    {{ block.super }}
+{% endblock content %}

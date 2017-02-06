@@ -4,6 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import functools
 import logging
 import threading
+from threading import Thread
 
 from django.utils import timezone
 
@@ -73,7 +74,7 @@ class Scheduler(object):
         # - the start of a new one
 
         try:
-            next_trigger = Trigger.objects.filter(start_date__gt=after).earliest('start_date')
+            next_trigger = Trigger.objects.filter(is_active=True, start_date__gt=after).earliest('start_date')
         except Trigger.DoesNotExist:
             # no next trigger
             next_trigger = None  # type: Trigger
@@ -102,7 +103,7 @@ class Scheduler(object):
         ):
             # b =>
             try:
-                last_active = Trigger.objects.valid_at(current.end_date).earliest('start_date')
+                last_active = Trigger.objects.filter(is_active=True).valid_at(current.end_date).earliest('start_date')
             except Trigger.DoesNotExist:
                 # no trigger active at the end of the current one, the default will be enabled
                 last_active = Trigger.default()
@@ -151,21 +152,27 @@ class Scheduler(object):
         :return:
         """
         try:
-            t = Trigger.objects.valid_at(timezone.now()).latest('start_date')
+            t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
             t.apply()
             self.current_trigger = t
             return t
         except Trigger.DoesNotExist:
             return None
 
-    def reload(self):
+    def reload(self, interval=None):
         """
         cancel the timer and the next trigger, and
-        compute the next one
+        compute the next one. can be done after an interval to delay the setup for some time.
         :return:
         """
         if self._enabled:
             with self._lock:
+                if interval is not None:
+                    t = threading.Timer(interval, self.reload)
+                    t.daemon = True
+                    t.start()
+                    return
+
                 self.reset_timer()
                 current = self.activate_current()
                 trigger, at = self.get_next_wake(current=current)

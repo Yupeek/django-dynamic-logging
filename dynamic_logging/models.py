@@ -6,10 +6,12 @@ import logging.config
 from copy import deepcopy
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
+from django.utils.translation import ugettext as _
 
 module_logger = logging.getLogger(__name__)
 
@@ -47,8 +49,8 @@ class Trigger(models.Model):
 
     is_active = models.BooleanField(default=True)
 
-    start_date = models.DateTimeField(default=timezone.now, null=True)
-    end_date = models.DateTimeField(default=now_plus_2hours, null=True)
+    start_date = models.DateTimeField(default=timezone.now, blank=True, null=True)
+    end_date = models.DateTimeField(default=now_plus_2hours, blank=True, null=True)
 
     config = models.ForeignKey('Config', related_name='triggers')
 
@@ -56,12 +58,19 @@ class Trigger(models.Model):
     def default(cls):
         if not hasattr(cls, "_default_settings"):
             cls._default_settings = cls(
-                name='default settings', start_date=None, end_date=None, config=Config.default()
+                name='default settings', start_date=None, end_date=None
             )
+            cls._default_settings.config = Config.default()
         return cls._default_settings
 
     def __str__(self):
-        return 'trigger %s from %s to %s for config %s' % (self.name, self.start_date, self.end_date, self.config.name)
+        try:
+            cfg_name = self.config.name
+        except Config.DoesNotExist:
+            cfg_name = ""
+        return 'trigger %s from %s to %s for config %s' % (
+            self.name, self.start_date, self.end_date,
+            cfg_name)
 
     def apply(self):
         self.config.apply(self)
@@ -72,7 +81,16 @@ class Trigger(models.Model):
         ]
         get_latest_by = 'start_date'
 
+def json_value(val):
+    try:
+        json.loads(val)
+    except Exception as e:
+        raise ValidationError(
+            _('%(value)s is not a valid json: %(error)s'),
+            params={'value': val, 'error': str(e)},
+        )
 
+@python_2_unicode_compatible
 class Config(models.Model):
     """
     the configuration for a whole logging config.
@@ -84,7 +102,7 @@ class Config(models.Model):
 
     name = models.CharField(max_length=255)
 
-    config_json = models.TextField()
+    config_json = models.TextField(validators=[json_value])
 
     @classmethod
     def default(cls):
@@ -92,6 +110,14 @@ class Config(models.Model):
             cls._default_settings = cls(name="from settings")
             cls._default_settings.config = settings.LOGGING
         return cls._default_settings
+
+    @classmethod
+    def get_all_handlers(cls):
+        """
+        return a dict with all conigured handlers
+        :return:
+        """
+        return settings.LOGGING.get('handlers', {})
 
     @property
     def config(self):
@@ -110,6 +136,7 @@ class Config(models.Model):
             for key, val in val.items()
             if key in self.KEEPT_CONFIG
         })
+
 
     def apply(self, trigger=None):
         """
@@ -131,6 +158,9 @@ class Config(models.Model):
         for logger in get_loggers().values():
             logger.handlers = []
             logger.propagate = True
+
+    def __str__(self):
+        return self.name
 
 
 def get_loggers():

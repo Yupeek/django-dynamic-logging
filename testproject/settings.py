@@ -39,9 +39,11 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'dynamic_logging',
     'testproject.testapp',
+    'debug_toolbar',
 )
 
 MIDDLEWARE_CLASSES = (
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -173,3 +175,5 @@ LOGGING = {
         }
     }
 }
+
+INTERNAL_IPS = ['127.0.0.1']

@@ -28,6 +28,10 @@ def get_tz_date(dmy):
     return tz.localize(ret)
 
 
+def now_plus(hours):
+    return timezone.now() + datetime.timedelta(hours=hours)
+
+
 class SchedulerTest(TestCase):
     def setUp(self):
         main_scheduler.disable()
@@ -91,8 +95,8 @@ class TestSchedulerTimers(TestCase):
         main_scheduler.start_threads = True
 
     def test_activate_trigger_at_creation(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_less_2h = timezone.now() - datetime.timedelta(hours=2)
+        now_plus_2h = now_plus(2)
+        now_less_2h = now_plus(-2)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         t = Trigger.objects.create(name='fake', config=self.config, start_date=now_less_2h, end_date=now_plus_2h)
@@ -100,10 +104,10 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.next_timer.at, now_plus_2h)
 
     def test_activate_right_trigger_at_creation(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_plus_1h = timezone.now() + datetime.timedelta(hours=1)
-        now_less_2h = timezone.now() - datetime.timedelta(hours=2)
-        now_less_1h = timezone.now() - datetime.timedelta(hours=1)
+        now_plus_2h = now_plus(2)
+        now_plus_1h = now_plus(1)
+        now_less_2h = now_plus(-2)
+        now_less_1h = now_plus(-1)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         t1 = Trigger.objects.create(name='fake', config=self.config, start_date=now_less_2h, end_date=now_plus_2h)
@@ -113,8 +117,8 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.next_timer.trigger, t1)
 
     def test_wakeup_trigger_at_creation(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_plus_1h = timezone.now() + datetime.timedelta(hours=1)
+        now_plus_2h = now_plus(2)
+        now_plus_1h = now_plus(1)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         self.assertEqual(main_scheduler.current_trigger.name, 'default settings')
@@ -129,8 +133,8 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.next_timer.trigger, t2)
 
     def test_trigger_with_none_date(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_less_2h = timezone.now() - datetime.timedelta(hours=2)
+        now_plus_2h = now_plus(2)
+        now_less_2h = now_plus(-2)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         self.assertEqual(main_scheduler.current_trigger.name, 'default settings')
@@ -144,8 +148,8 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.next_timer.trigger, t1)
 
     def test_trigger_with_none_date_already_active(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_less_2h = timezone.now() - datetime.timedelta(hours=2)
+        now_plus_2h = now_plus(2)
+        now_less_2h = now_plus(-2)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         self.assertEqual(main_scheduler.current_trigger.name, 'default settings')
@@ -162,8 +166,8 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.next_timer.trigger, t1)
 
     def test_auto_reload_on_trigger_changes(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_less_2h = timezone.now() - datetime.timedelta(hours=2)
+        now_plus_2h = now_plus(2)
+        now_less_2h = now_plus(-2)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         t = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus_2h)
@@ -183,9 +187,26 @@ class TestSchedulerTimers(TestCase):
         t.delete()
         self.assertIsNone(main_scheduler.next_timer)
 
+    def test_is_active_usage(self):
+
+        t = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus(2))
+        t2 = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus(3))
+
+        self.assertEqual(main_scheduler.next_timer.trigger, t)
+        # trigger already ended
+        t.is_active = False
+        t.save()
+        self.assertEqual(main_scheduler.next_timer.trigger, t2)
+        t2.start_date = now_plus(1)
+        t2.save()
+        self.assertEqual(main_scheduler.next_timer.trigger, t2)
+        t.is_active = True
+        t.save()
+        self.assertEqual(main_scheduler.next_timer.trigger, t2)
+
     def test_wake(self):
-        now_plus_2h = timezone.now() + datetime.timedelta(hours=2)
-        now_plus_4h = timezone.now() + datetime.timedelta(hours=4)
+        now_plus_2h = now_plus(2)
+        now_plus_4h = now_plus(4)
         # no trigger in fixtures
         self.assertIsNone(main_scheduler.next_timer)
         t = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus_2h, end_date=now_plus_4h)
