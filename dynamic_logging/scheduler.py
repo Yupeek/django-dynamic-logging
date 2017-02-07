@@ -4,7 +4,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 import functools
 import logging
 import threading
-from threading import Thread
 
 from django.utils import timezone
 

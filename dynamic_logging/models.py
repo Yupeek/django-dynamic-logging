@@ -81,6 +81,7 @@ class Trigger(models.Model):
         ]
         get_latest_by = 'start_date'
 
+
 def json_value(val):
     try:
         json.loads(val)
@@ -89,6 +90,7 @@ def json_value(val):
             _('%(value)s is not a valid json: %(error)s'),
             params={'value': val, 'error': str(e)},
         )
+
 
 @python_2_unicode_compatible
 class Config(models.Model):
@@ -136,7 +138,6 @@ class Config(models.Model):
             for key, val in val.items()
             if key in self.KEEPT_CONFIG
         })
-
 
     def apply(self, trigger=None):
         """

@@ -5,7 +5,6 @@ import logging
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
-from functools import partial
 
 logger = logging.getLogger(__name__)
 

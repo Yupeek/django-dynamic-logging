@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-
 # Create your tests here.
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config

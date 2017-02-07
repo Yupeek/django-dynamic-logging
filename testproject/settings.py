@@ -88,7 +88,12 @@ DATABASES = {
     }
 }
 
-TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
+try:
+    import teamcity
+    if teamcity.is_running_under_teamcity():
+        TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
+except ImportError:
+    pass
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
@@ -159,17 +164,17 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['null'],
             'level': 'ERROR',
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['console'],
+            'handlers': ['null'],
             'level': 'ERROR',
             'propagate': True,
         },
         'testproject.testapp': {
-            'handlers': ['console', 'null', 'devnull'],
+            'handlers': ['null', 'devnull'],
             'level': 'DEBUG',
             'propagate': False
         }

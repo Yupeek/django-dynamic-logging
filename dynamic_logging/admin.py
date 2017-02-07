@@ -5,6 +5,7 @@ from django.template.defaultfilters import safe
 from django.utils.translation import ugettext_lazy as _
 
 from dynamic_logging.scheduler import main_scheduler
+
 from .models import Config, Trigger
 
 

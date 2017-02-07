@@ -22,6 +22,9 @@ install:
   - if [[ $TRAVIS_PYTHON_VERSION == '3.2' ]]; then travis_retry pip install 'coverage<4.0'; fi
   - pip install -r requirements.txt
 
+before_script:
+  - isort --recursive --check-only --diff dynamic_logging testproject
+  - flake8 dynamic_logging testproject
 
 # Command to run tests, e.g. python setup.py test
 script:

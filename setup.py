@@ -48,6 +48,8 @@ setup(
     ],
     packages=[
         'dynamic_logging',
+        'dynamic_logging.migrations',
+        'dynamic_logging.templatetags',
     ],
     include_package_data=True,
     license="GNU GENERAL PUBLIC LICENSE",
