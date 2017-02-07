@@ -16,12 +16,12 @@ def getitem(dict, key):
 
 @register.inclusion_tag('dynamic_logging/display_config.html')
 def display_config(config=None):
+    if config is None:
+        config = main_scheduler.current_trigger.config
     try:
         config.config
     except ValueError:
         return {}
-    if config is None:
-        config = main_scheduler.current_trigger.config
     return {
         'config': config,
         'handlers': Config.get_all_handlers()

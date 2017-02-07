@@ -5,13 +5,17 @@ from django.template.defaultfilters import safe
 from django.utils.translation import ugettext_lazy as _
 
 from dynamic_logging.scheduler import main_scheduler
-
+from dynamic_logging.widgets import JsonLoggerWidget
+from django.db import models
 from .models import Config, Trigger
 
 
 @admin.register(Config)
 class ConfigAdmin(admin.ModelAdmin):
     list_display = ['name', 'config_is_running', 'link_to_triggers', 'add_trigger']
+    formfield_overrides = {
+        models.TextField: {'label': 'loggers', 'widget': JsonLoggerWidget},
+    }
 
     def config_is_running(self, obj):
         return main_scheduler.current_trigger.config == obj
@@ -43,7 +47,6 @@ class ConfigAdmin(admin.ModelAdmin):
         loggers = list(main_scheduler.current_trigger.config.config.get('loggers', {}).values())
         if main_scheduler.next_timer:
             extra_context['next_trigger'] = main_scheduler.next_timer.trigger
-            print(main_scheduler.next_timer.trigger)
             loggers += list(main_scheduler.next_timer.trigger.config.config.get('loggers', {}).values())
 
         return super(ConfigAdmin, self).changelist_view(request, extra_context)

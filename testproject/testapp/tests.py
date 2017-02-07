@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.core.urlresolvers import reverse
 from django.test import TestCase
 
 # Create your tests here.
 from dynamic_logging.handlers import MockHandler
-from dynamic_logging.models import Config
+from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import main_scheduler
+from dynamic_logging.tests import now_plus
 
 
 class TestPages(TestCase):
@@ -56,6 +58,8 @@ class TestAdminContent(TestCase):
         u.save()
         self.client.login(username='admin', password='password')
         main_scheduler.reload()
+        self.c = c = Config.objects.create(name='my_config', config_json='{}')
+        self.t = Trigger.objects.create(name='in1hour', config=c, start_date=now_plus(2), end_date=now_plus(4))
 
     def tearDown(self):
         main_scheduler.reset()
@@ -65,5 +69,17 @@ class TestAdminContent(TestCase):
         self.assertContains(response, 'Trigger')
 
     def test_config_list(self):
-        response = self.client.get('/admin/dynamic_logging/config/')
+        response = self.client.get(reverse('admin:dynamic_logging_config_changelist'))
         self.assertContains(response, 'default settings')
+
+    def test_trigger_list(self):
+        response = self.client.get(reverse('admin:dynamic_logging_trigger_changelist'))
+        self.assertContains(response, 'in1hour')
+
+    def test_config_change(self):
+        response = self.client.get(reverse('admin:dynamic_logging_config_change', args=(self.t.pk,)))
+        self.assertContains(response, 'my_config')
+
+    def test_trigger_change(self):
+        response = self.client.get(reverse('admin:dynamic_logging_trigger_change', args=(self.t.pk,)))
+        self.assertContains(response, 'in1hour')
