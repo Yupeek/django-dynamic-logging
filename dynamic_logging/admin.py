@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django.core.urlresolvers import reverse
+from django.db import models
 from django.template.defaultfilters import safe
 from django.utils.translation import ugettext_lazy as _
 
 from dynamic_logging.scheduler import main_scheduler
 from dynamic_logging.widgets import JsonLoggerWidget
-from django.db import models
+
 from .models import Config, Trigger
 
 

@@ -10,6 +10,7 @@ from django.utils import timezone
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger, get_loggers
 from dynamic_logging.scheduler import Scheduler, main_scheduler
+from dynamic_logging.templatetags.dynamic_logging import display_config, getitem
 
 
 def load_tests(loader, tests, ignore):
@@ -327,3 +328,149 @@ class ConfigApplyTest(TestCase):
             Config.default().apply()
             logger.warn("hey")
             self.assertEqual(messages['warning'], [])
+
+    def test_filter_apply(self):
+        logger = logging.getLogger('testproject.testapp')
+        # handler not attached to this logger
+        # setup new config
+        cfg_filtered = Config(name='empty')
+        cfg_filtered.config = {"loggers": {
+            "testproject.testapp": {
+                "handlers": ["mock"],
+                "level": "WARN",
+                "filters": ['polite']
+            }
+        }}
+        cfg_passall = Config(name='empty')
+        cfg_passall.config = {"loggers": {
+            "testproject.testapp": {
+                "handlers": ["mock"],
+                "level": "WARN",
+                "filters": []
+            }
+        }}
+        cfg_filtered.apply()
+        # log debug ineficient
+        with MockHandler.capture() as messages:
+            logger.warn("hey")
+            self.assertEqual(messages['warning'], [])
+            logger.warn("hello, you")
+            self.assertEqual(messages['warning'], ['hello, you'])
+
+        with MockHandler.capture() as messages:
+            # default config does not add
+            cfg_passall.apply()
+            logger.warn("hey")
+            self.assertEqual(messages['warning'], ['hey'])
+            logger.warn("hello, you")
+            self.assertEqual(messages['warning'], ['hey', 'hello, you'])
+
+    def test_handler_merging(self):
+        original_cfg = {
+            'mail_admins': {
+                'level': 'ERROR',
+                'filters': ['require_debug_false'],
+                'class': 'django.utils.log.AdminEmailHandler',
+            },
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'colored',
+                'propagate': False
+            }
+        }
+        new_cfg = {
+            'dont exists': {  # ignored
+                'level': 'ERROR'
+            },
+            'console': {
+                'level': 'INFO',  # ok
+                'class': 'logging.HACKME',  # ignored
+                'formatter': 'prout',  # ignored
+                'ignored': True,  # ignored
+                'filters': ['nofilter']  # ok
+            }
+        }
+        res = Config.merge_handlers(original_cfg, new_cfg)
+        self.assertEqual(res, {
+            'mail_admins': {
+                'level': 'ERROR',
+                'filters': ['require_debug_false'],
+                'class': 'django.utils.log.AdminEmailHandler',
+            },
+            'console': {
+                'level': 'INFO',
+                'class': 'logging.StreamHandler',
+                'formatter': 'colored',
+                'propagate': False,
+                'filters': ['nofilter']
+            }
+        })
+
+    def test_loggers_creation(self):
+        asked_cfg = {
+            'django': {
+                'level': 'ERROR',
+                'propagate': False,
+            },
+            'django.request': {
+                'handlers': ['null'],
+                'filters': ['filter']
+            },
+            'testproject.testapp': {
+                'handlers': ['null', 'devnull'],
+            },
+            'lol': {
+                'ignored': 'lol',
+            }
+        }
+        self.maxDiff = None
+        self.assertEqual(Config.create_loggers(asked_cfg), {
+                'django': {
+                    'handlers': [],
+                    'level': 'ERROR',
+                    'propagate': False,
+                    'filters': []
+                },
+                'django.request': {
+                    'handlers': ['null'],
+                    'level': 'INFO',
+                    'propagate': True,
+                    'filters': ['filter']
+                },
+                'testproject.testapp': {
+                    'handlers': ['null', 'devnull'],
+                    'level': 'INFO',
+                    'propagate': True,
+                    'filters': []
+                },
+                'lol': {
+                    'handlers': [],
+                    'level': 'INFO',
+                    'propagate': True,
+                    'filters': []
+                },
+            }
+        )
+
+
+class TestTag(TestCase):
+    def test_display_config_current_auto(self):
+        config = display_config()
+        self.assertEqual(config['config'], main_scheduler.current_trigger.config)
+        self.assertGreater(len(config['handlers']), 0)
+
+    def test_display_config_given(self):
+        c = Config(name="lol", config_json='{}')
+        config = display_config(c)
+        self.assertEqual(config['config'], c)
+        self.assertGreater(len(config['handlers']), 0)
+
+    def test_display_fallback_bad_config(self):
+        c = Config(name="lol", config_json='}')
+        self.assertRaises(ValueError, getattr, c, 'config')
+        config = display_config(c)
+        self.assertEqual(config, {})
+
+    def test_getitem(self):
+        self.assertEqual(getitem({'a': True}, 'a'), True)

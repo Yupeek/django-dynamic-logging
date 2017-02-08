@@ -88,11 +88,11 @@ DATABASES = {
     }
 }
 
-try:
+try:  # pragma: nocover
     import teamcity
-    if teamcity.is_running_under_teamcity():
+    if teamcity.is_running_under_teamcity():  # pragma: nocover
         TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
-except ImportError:
+except ImportError:  # pragma: nocover
     pass
 
 # Internationalization
@@ -134,6 +134,9 @@ LOGGING = {
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
+        },
+        'polite': {
+            '()': 'testproject.filter.PoliteFilter'
         }
     },
     'handlers': {

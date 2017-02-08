@@ -10,8 +10,8 @@ register = template.Library()
 
 
 @register.filter
-def getitem(dict, key):
-    return dict[key]
+def getitem(dict_, key):
+    return dict_[key]
 
 
 @register.inclusion_tag('dynamic_logging/display_config.html')

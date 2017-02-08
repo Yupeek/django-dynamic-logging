@@ -58,7 +58,8 @@ class TestAdminContent(TestCase):
         u.save()
         self.client.login(username='admin', password='password')
         main_scheduler.reload()
-        self.c = c = Config.objects.create(name='my_config', config_json='{}')
+        self.c = c = Config.objects.create(name='my_config', config_json='{"loggers":{"blablabla":{"level":"ERROR",'
+                                                                         '"handlers":["console"],"propagate":true}}}')
         self.t = Trigger.objects.create(name='in1hour', config=c, start_date=now_plus(2), end_date=now_plus(4))
 
     def tearDown(self):
@@ -83,3 +84,33 @@ class TestAdminContent(TestCase):
     def test_trigger_change(self):
         response = self.client.get(reverse('admin:dynamic_logging_trigger_change', args=(self.t.pk,)))
         self.assertContains(response, 'in1hour')
+
+    def test_trigger_summary(self):
+        self.t.start_date = now_plus(-2)
+        self.t.save()
+        response = self.client.get(reverse('admin:app_list', kwargs={'app_label': 'dynamic_logging'}))
+        self.assertContains(response, 'blablabla')
+
+    def test_display_bad_conf(self):
+        self.t.start_date = now_plus(-2)
+        self.t.save()
+        self.t.config.config_json = 'oops bad json'
+        self.t.config.save()
+
+        response = self.client.get(reverse('admin:app_list', kwargs={'app_label': 'dynamic_logging'}))
+        self.assertNotContains(response, 'blablabla')
+
+    def test_trigger_broken(self):
+        self.t.config_id = 99
+        self.t.save()
+        self.assertIn('<no config>', str(Trigger.objects.get(pk=self.t.pk)))
+
+    def test_create_bad_config(self):
+        res = self.client.post(reverse('admin:dynamic_logging_config_add'), data={
+            'name': 'new config',
+            'config_json': '{bda bconfig oops'
+        })
+        self.assertContains(res, 'not a valid json')
+
+    def test_wsgi_import(self):
+        import testproject.wsgi  # NOQA

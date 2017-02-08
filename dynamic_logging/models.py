@@ -67,7 +67,7 @@ class Trigger(models.Model):
         try:
             cfg_name = self.config.name
         except Config.DoesNotExist:
-            cfg_name = ""
+            cfg_name = "<no config>"
         return 'trigger %s from %s to %s for config %s' % (
             self.name, self.start_date, self.end_date,
             cfg_name)
@@ -146,7 +146,9 @@ class Config(models.Model):
         :return:
         """
         config = deepcopy(settings.LOGGING)
-        config['loggers'] = self.config.get('loggers', {})
+        # we merge the loggers and handlers into the default config
+        config['loggers'] = self.create_loggers(self.config.get('loggers', {}))
+        config['handlers'] = self.merge_handlers(config.get('handlers', {}), self.config.get('handlers', {}))
         module_logger.info("[%s] applying logging config %s: %r" % (trigger, self, config))
         self._reset_logging()
         logging.config.dictConfig(config)
@@ -158,7 +160,39 @@ class Config(models.Model):
         """
         for logger in get_loggers().values():
             logger.handlers = []
+            logger.filters = []
             logger.propagate = True
+
+    @staticmethod
+    def create_loggers(partial_config):
+        """
+        generate a correct logger config for the parital config
+        :param partial_config:
+        :return: the dict that can be passed into a logger configrator
+        """
+        default_val = {'propagate': True, 'handlers': [], 'filters': [], 'level': 'INFO'}
+
+        res = {}
+        for logger_name, logger_cfg in partial_config.items():
+            current = res[logger_name] = {}
+            current.update(default_val)
+            current.update({k: v for k, v in logger_cfg.items() if k in default_val.keys()})
+        return res
+
+    @staticmethod
+    def merge_handlers(settings_handlers, new_config):
+        """
+        merge the handler config. it don't add new handler, and just
+        merge the level and the filters. nothing else
+        :param settings_handlers:
+        :param new_config:
+        :return:
+        """
+        res = deepcopy(settings_handlers)
+        for handler_name, handler_cfg_res in res.items():
+            expected_handler_cfg = new_config.get(handler_name, {})
+            handler_cfg_res.update({k: v for k, v in expected_handler_cfg.items() if k in ('filters', 'level')})
+        return res
 
     def __str__(self):
         return self.name

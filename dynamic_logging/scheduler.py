@@ -152,10 +152,15 @@ class Scheduler(object):
         """
         try:
             t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
+        except Trigger.DoesNotExist:
+            return None
+        try:
             t.apply()
             self.current_trigger = t
             return t
-        except Trigger.DoesNotExist:
+        except ValueError as e:
+            logger.exception("error with current logger activation trigger=%s, config=%s => %s",
+                             t.id, t.config_id, str(e))
             return None
 
     def reload(self, interval=None):
