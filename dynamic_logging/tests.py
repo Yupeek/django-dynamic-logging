@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 import doctest
+import json
 import logging.config
 
 from django.conf import settings
@@ -8,7 +9,7 @@ from django.test.testcases import TestCase
 from django.utils import timezone
 
 from dynamic_logging.handlers import MockHandler
-from dynamic_logging.models import Config, Trigger, get_loggers
+from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import Scheduler, main_scheduler
 from dynamic_logging.templatetags.dynamic_logging import display_config, getitem
 
@@ -189,7 +190,6 @@ class TestSchedulerTimers(TestCase):
         self.assertIsNone(main_scheduler.next_timer)
 
     def test_is_active_usage(self):
-
         t = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus(2))
         t2 = Trigger.objects.create(name='fake', config=self.config, start_date=now_plus(3))
 
@@ -218,25 +218,68 @@ class TestSchedulerTimers(TestCase):
 
 
 class ConfigApplyTest(TestCase):
+
+    def setUp(self):
+        Config.default().apply()
+        main_scheduler.reset_timer()
+
     def tearDown(self):
         # reset the default config
         Config.default().apply()
+        main_scheduler.reset_timer()
+
+    def test_config_property_setter(self):
+        c = Config(name='lol', config_json='{}')
+        c.config = {
+            'handlers': {
+                'added': {}
+            },
+            'loggers': {
+                'console': {
+                    'level': 'CRITICAL',
+                    'class': 'missed'
+                }
+            }
+        }
+        self.assertEqual(
+            json.loads(c.config_json),
+            {'handlers': {'added': {}}, 'loggers': {'console': {'level': 'CRITICAL'}}}
+        )
+
+    def test_config_property_getter(self):
+        c = Config(name='lol', config_json='{}')
+        self.maxDiff = None
+        c.config_json = json.dumps({
+            'handlers': {
+                'added': {}
+            },
+            'loggers': {
+                'console': {
+                    'level': 'CRITICAL',
+                    'class': 'missed'
+                }
+            }
+        })
+        self.assertEqual(
+            c.config,
+            {'handlers': {'added': {}}, 'loggers': {'console': {'level': 'CRITICAL'}}}
+        )
 
     def test_default_config_by_default(self):
-        loggers = get_loggers()
+        loggers = Config.get_existing_loggers()
         for name, configured in settings.LOGGING['loggers'].items():
             self.assertEqual(len(configured['handlers']), len(loggers[name].handlers))
 
     def test_empty_config(self):
         cfg = Config(name='empty', config_json='{"loggers": {}}')
         cfg.apply()
-        for logger in get_loggers().values():
+        for logger in Config.get_existing_loggers().values():
             self.assertEqual(logger.handlers, [])
 
     def test_simple_config(self):
         cfg = Config(name='empty', config_json='{"loggers": {"dynamic_logging": {"handlers": ["console"]}}}')
         cfg.apply()
-        for logger in get_loggers().values():
+        for logger in Config.get_existing_loggers().values():
             if logger.name in cfg.config['loggers']:
 
                 self.assertEqual(len(logger.handlers), 1)
@@ -245,7 +288,7 @@ class ConfigApplyTest(TestCase):
 
     def test_level_config(self):
 
-        loggers = get_loggers()
+        loggers = Config.get_existing_loggers()
 
         self.assertEqual(loggers['testproject.testapp'].level, logging.DEBUG)  # default to info
 
@@ -262,7 +305,7 @@ class ConfigApplyTest(TestCase):
         }}
         cfg.apply()
         self.assertEqual(loggers['testproject.testapp'].level, logging.WARNING)  # default to info
-        for logger in get_loggers().values():
+        for logger in Config.get_existing_loggers().values():
             logger_config = cfg.config['loggers'].get(logger.name)
             if logger_config:
                 self.assertEqual(len(logger.handlers), len(logger_config['handlers']))
@@ -330,7 +373,6 @@ class ConfigApplyTest(TestCase):
             self.assertEqual(messages['warning'], [])
 
     def test_filter_apply(self):
-        logger = logging.getLogger('testproject.testapp')
         # handler not attached to this logger
         # setup new config
         cfg_filtered = Config(name='empty')
@@ -349,9 +391,15 @@ class ConfigApplyTest(TestCase):
                 "filters": []
             }
         }}
+        logger_old = logging.getLogger('testproject.testapp')
+
         cfg_filtered.apply()
+        logger = logging.getLogger('testproject.testapp')
+        self.assertEqual(logger, logger_old)
+
         # log debug ineficient
         with MockHandler.capture() as messages:
+            self.assertEqual(len(logger.filters), 1)
             logger.warn("hey")
             self.assertEqual(messages['warning'], [])
             logger.warn("hello, you")
@@ -426,32 +474,31 @@ class ConfigApplyTest(TestCase):
         }
         self.maxDiff = None
         self.assertEqual(Config.create_loggers(asked_cfg), {
-                'django': {
-                    'handlers': [],
-                    'level': 'ERROR',
-                    'propagate': False,
-                    'filters': []
-                },
-                'django.request': {
-                    'handlers': ['null'],
-                    'level': 'INFO',
-                    'propagate': True,
-                    'filters': ['filter']
-                },
-                'testproject.testapp': {
-                    'handlers': ['null', 'devnull'],
-                    'level': 'INFO',
-                    'propagate': True,
-                    'filters': []
-                },
-                'lol': {
-                    'handlers': [],
-                    'level': 'INFO',
-                    'propagate': True,
-                    'filters': []
-                },
-            }
-        )
+            'django': {
+                'handlers': [],
+                'level': 'ERROR',
+                'propagate': False,
+                'filters': []
+            },
+            'django.request': {
+                'handlers': ['null'],
+                'level': 'INFO',
+                'propagate': True,
+                'filters': ['filter']
+            },
+            'testproject.testapp': {
+                'handlers': ['null', 'devnull'],
+                'level': 'INFO',
+                'propagate': True,
+                'filters': []
+            },
+            'lol': {
+                'handlers': [],
+                'level': 'INFO',
+                'propagate': True,
+                'filters': []
+            },
+        })
 
 
 class TestTag(TestCase):

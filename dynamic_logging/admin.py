@@ -15,7 +15,7 @@ from .models import Config, Trigger
 class ConfigAdmin(admin.ModelAdmin):
     list_display = ['name', 'config_is_running', 'link_to_triggers', 'add_trigger']
     formfield_overrides = {
-        models.TextField: {'label': 'loggers', 'widget': JsonLoggerWidget},
+        models.TextField: {'label': 'settings', 'widget': JsonLoggerWidget},
     }
 
     def config_is_running(self, obj):

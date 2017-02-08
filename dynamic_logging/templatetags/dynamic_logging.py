@@ -11,7 +11,7 @@ register = template.Library()
 
 @register.filter
 def getitem(dict_, key):
-    return dict_[key]
+    return dict_.get(key)
 
 
 @register.inclusion_tag('dynamic_logging/display_config.html')

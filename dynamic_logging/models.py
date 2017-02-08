@@ -100,7 +100,10 @@ class Config(models.Model):
     it's the settings.LOGGING that is setup in the server.
     """
 
-    KEEPT_CONFIG = ('loggers', )
+    KEEPT_CONFIG = {
+        'loggers': ['level', 'propagate', 'filters', 'handlers'],
+        'handlers': ['level', 'filters']
+    }
 
     name = models.CharField(max_length=255)
 
@@ -121,23 +124,41 @@ class Config(models.Model):
         """
         return settings.LOGGING.get('handlers', {})
 
+    @classmethod
+    def get_all_filters(cls):
+        """
+        return a dict with all conigured filters
+        :return:
+        """
+        return settings.LOGGING.get('filters', {})
+
+    @classmethod
+    def get_existing_loggers(cls):
+        return {k: v for k, v in logging.Logger.manager.loggerDict.items() if isinstance(v, logging.Logger)}
+
     @property
     def config(self):
         if not self.config_json:
             return {}
-        return {
-            key: val
-            for key, val in json.loads(self.config_json).items()
-            if key in self.KEEPT_CONFIG
-        }
+        res = {}
+        loaded = json.loads(self.config_json)
+        for cfg, sub in self.KEEPT_CONFIG.items():
+            res.setdefault(cfg, {}).update({
+                name: {k: v for k, v in cfg.items() if k in sub}
+                for name, cfg in loaded.get(cfg, {}).items()
+            })
+        return res
 
     @config.setter
     def config(self, val):
-        self.config_json = json.dumps({
-            key: val
-            for key, val in val.items()
-            if key in self.KEEPT_CONFIG
-        })
+        res = {}
+        for cfg, sub in self.KEEPT_CONFIG.items():
+            res[cfg] = {
+                name: {k: v for k, v in cfg.items() if k in sub}
+                for name, cfg in val.get(cfg, {}).items()
+
+            }
+        self.config_json = json.dumps(res)
 
     def apply(self, trigger=None):
         """
@@ -151,6 +172,8 @@ class Config(models.Model):
         config['handlers'] = self.merge_handlers(config.get('handlers', {}), self.config.get('handlers', {}))
         module_logger.info("[%s] applying logging config %s: %r" % (trigger, self, config))
         self._reset_logging()
+        module_logger.debug("applying config %s", json.dumps(config))
+        # print("apply %s : %s " % (self.name, json.dumps(config)))
         logging.config.dictConfig(config)
 
     def _reset_logging(self):
@@ -158,7 +181,7 @@ class Config(models.Model):
         reset all the handlers for all loggers.
         :return:
         """
-        for logger in get_loggers().values():
+        for logger in self.get_existing_loggers().values():
             logger.handlers = []
             logger.filters = []
             logger.propagate = True
@@ -170,7 +193,8 @@ class Config(models.Model):
         :param partial_config:
         :return: the dict that can be passed into a logger configrator
         """
-        default_val = {'propagate': True, 'handlers': [], 'filters': [], 'level': 'INFO'}
+        default_val = {'propagate': True, 'handlers': [],
+                       'filters': [], 'level': 'INFO'}
 
         res = {}
         for logger_name, logger_cfg in partial_config.items():
@@ -196,7 +220,3 @@ class Config(models.Model):
 
     def __str__(self):
         return self.name
-
-
-def get_loggers():
-    return {k: v for k, v in logging.Logger.manager.loggerDict.items() if isinstance(v, logging.Logger)}

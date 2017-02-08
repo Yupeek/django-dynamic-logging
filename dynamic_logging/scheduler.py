@@ -33,6 +33,7 @@ class Scheduler(object):
         """
         a bool to prevent the threads to start, for testing purpose
         """
+        self.reload_timer = None
 
     def disable(self):
         """
@@ -144,6 +145,9 @@ class Scheduler(object):
             if self.next_timer is not None:
                 self.next_timer.cancel()
                 self.next_timer = None
+            if self.reload_timer is not None:
+                self.reload_timer.cancel()
+                self.reload_timer = None
 
     def activate_current(self):
         """
@@ -172,9 +176,12 @@ class Scheduler(object):
         if self._enabled:
             with self._lock:
                 if interval is not None:
-                    t = threading.Timer(interval, self.reload)
+                    if self.reload_timer is not None:
+                        self.reload_timer.cancel()
+                    self.reload_timer = t = threading.Timer(interval, self.reload)
                     t.daemon = True
                     t.start()
+                    self.reload_timer = t
                     return
 
                 self.reset_timer()
