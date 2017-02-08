@@ -120,7 +120,5 @@ class TestAdminContent(TestCase):
         })
         self.assertContains(res, 'not a valid json')
 
-
-
     def test_wsgi_import(self):
         import testproject.wsgi  # NOQA
