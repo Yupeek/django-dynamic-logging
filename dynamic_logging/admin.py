@@ -31,6 +31,9 @@ class ConfigAdmin(admin.ModelAdmin):
             obj.triggers.count()
         ))
 
+    def get_changeform_initial_data(self, request):
+        return {'config_json': Config.default().config_json}
+
     def add_trigger(self, obj):
         return safe('<a href="%s?config=%d">add trigger</a>' % (reverse('admin:dynamic_logging_trigger_add'), obj.pk))
 

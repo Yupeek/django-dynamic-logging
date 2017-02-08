@@ -85,6 +85,14 @@ class TestAdminContent(TestCase):
         response = self.client.get(reverse('admin:dynamic_logging_trigger_change', args=(self.t.pk,)))
         self.assertContains(response, 'in1hour')
 
+    def test_config_add(self):
+        response = self.client.get(reverse('admin:dynamic_logging_config_add'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_trigger_add(self):
+        response = self.client.get(reverse('admin:dynamic_logging_trigger_add'))
+        self.assertEqual(response.status_code, 200)
+
     def test_trigger_summary(self):
         self.t.start_date = now_plus(-2)
         self.t.save()
@@ -111,6 +119,8 @@ class TestAdminContent(TestCase):
             'config_json': '{bda bconfig oops'
         })
         self.assertContains(res, 'not a valid json')
+
+
 
     def test_wsgi_import(self):
         import testproject.wsgi  # NOQA

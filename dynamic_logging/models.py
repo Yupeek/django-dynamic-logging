@@ -107,7 +107,7 @@ class Config(models.Model):
 
     name = models.CharField(max_length=255)
 
-    config_json = models.TextField(validators=[json_value])
+    config_json = models.TextField(validators=[json_value], default='{}')
 
     @classmethod
     def default(cls):
