@@ -55,6 +55,7 @@ class Trigger(models.Model):
     end_date = models.DateTimeField(default=now_plus_2hours, blank=True, null=True)
 
     config = models.ForeignKey('Config', related_name='triggers')
+    last_update = models.DateTimeField(auto_now=True)
 
     @classmethod
     def default(cls):
@@ -110,6 +111,8 @@ class Config(models.Model):
     name = models.CharField(max_length=255)
 
     config_json = models.TextField(validators=[json_value], default='{}')
+
+    last_update = models.DateTimeField(auto_now=True)
 
     @classmethod
     def default(cls):

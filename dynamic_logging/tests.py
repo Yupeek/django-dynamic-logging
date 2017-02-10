@@ -7,6 +7,7 @@ import logging.config
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.test.testcases import TestCase
+from django.test.utils import override_settings
 from django.utils import timezone
 
 from dynamic_logging.handlers import MockHandler
@@ -88,6 +89,10 @@ class SchedulerTest(TestCase):
         self.assertTriggerForDate('27-02-2017', 'default settings', None)
 
 
+@override_settings(
+    DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
+                     }
+)
 class TestSchedulerTimers(TestCase):
     def setUp(self):
         self.config = Config.objects.create(name='nothing', config={})
@@ -537,6 +542,7 @@ class SignalHandlingTest(TestCase):
 
     def test_auto_signal_customise(self):
         cnt = []
+
         def wrapper():
             cnt.append(1)
         a = AutoSignalsHandler()
@@ -546,6 +552,7 @@ class SignalHandlingTest(TestCase):
 
     def test_auto_signal_overwrite(self):
         cnt = []
+
         def wrapper():
             cnt.append(1)
         a = AutoSignalsHandler()
@@ -598,4 +605,3 @@ class SignalHandlingTest(TestCase):
             Config.objects.count()
         self.assertEqual(len(msg['debug']), 1)
         self.assertTrue('SELECT COUNT(*)' in msg['debug'][0])
-

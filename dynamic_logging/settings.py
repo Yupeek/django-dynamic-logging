@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_VALUES = {
     "signals_auto":  ('db_debug',),  # setup all automatic signal handlers
-    "config_upgrade_propagator": "dynamic_logging.propagator.ThreadSignalPropagator",
+    "upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
 }
 
 

@@ -72,4 +72,3 @@ class AutoSignalsHandler(object):
                     connections[alias].force_debug_cursor = val
                     del old_cnx_val[alias]
         config_applied.connect(db_debug_handler, weak=False)
-

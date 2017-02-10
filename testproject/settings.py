@@ -185,3 +185,6 @@ LOGGING = {
 }
 
 INTERNAL_IPS = ['127.0.0.1']
+DYNAMIC_LOGGING = {
+    "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {}}
+}

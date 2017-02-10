@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.test import TestCase
-
 # Create your tests here.
+from django.test.utils import override_settings
+
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import main_scheduler
@@ -48,6 +49,10 @@ class TestPages(TestCase):
         self.assertRaises(Exception, self.client.get, '/testapp/log/OOPS/testproject.testapp/')
 
 
+@override_settings(
+    DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
+                     }
+)
 class TestAdminContent(TestCase):
 
     def setUp(self):

@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import logging
 
 from django.apps.config import AppConfig
-from django.db.models.signals import post_delete, post_save
+from django.core.signals import setting_changed
 from django.db.utils import OperationalError
 
 from dynamic_logging.settings import get_setting
@@ -17,6 +17,21 @@ class DynamicLoggingConfig(AppConfig):
     name = 'dynamic_logging'
     auto_signal_handler = AutoSignalsHandler()
 
+    def __init__(self, *args, **kwargs):
+        self.propagator = None
+        super(DynamicLoggingConfig, self).__init__(*args, **kwargs)
+
+    def on_settings_changed(self, sender, setting, *args, **kwargs):
+        if setting == 'DYNAMIC_LOGGING':
+            self.setup_propagator()
+
+    def setup_propagator(self):
+        from dynamic_logging.propagator import Propagator
+        if self.propagator is not None:
+            self.propagator.teardown()
+        self.propagator = Propagator.get_current()
+        self.propagator.setup()
+
     def ready(self):
         # import at ready time to prevent model loading before app ready
         from dynamic_logging.scheduler import main_scheduler
@@ -27,12 +42,6 @@ class DynamicLoggingConfig(AppConfig):
         # setup signals for Trigger changes. it will reload the current trigger and next one
 
         self.auto_signal_handler.apply(get_setting('signals_auto'))
-        from .signals import reload_timers_on_trigger_change
-        Trigger = self.get_model('Trigger')
-        Config = self.get_model('Config')
+        self.setup_propagator()
 
-        post_save.connect(reload_timers_on_trigger_change, sender=Trigger)
-        post_delete.connect(reload_timers_on_trigger_change, sender=Trigger)
-
-        post_save.connect(reload_timers_on_trigger_change, sender=Config)
-        post_delete.connect(reload_timers_on_trigger_change, sender=Config)
+        setting_changed.connect(self.on_settings_changed)
