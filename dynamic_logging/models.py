@@ -13,6 +13,8 @@ from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
 from django.utils.translation import ugettext as _
 
+from dynamic_logging.signals import config_applied
+
 module_logger = logging.getLogger(__name__)
 
 
@@ -175,6 +177,7 @@ class Config(models.Model):
         module_logger.debug("applying config %s", json.dumps(config))
         # print("apply %s : %s " % (self.name, json.dumps(config)))
         logging.config.dictConfig(config)
+        config_applied.send(self.__class__, config=self)
 
     def _reset_logging(self):
         """

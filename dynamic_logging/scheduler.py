@@ -120,6 +120,7 @@ class Scheduler(object):
             interval = (at - timezone.now()).total_seconds()
             self.next_timer = threading.Timer(interval,
                                               functools.partial(self.wake, trigger=trigger, date=at))
+            self.next_timer.name = 'ApplyTimer for %s' % trigger.pk
             self.next_timer.daemon = True  # prevent program hanging until netx trigger
             self.next_timer.trigger = trigger
             self.next_timer.at = at
@@ -179,6 +180,7 @@ class Scheduler(object):
                     if self.reload_timer is not None:
                         self.reload_timer.cancel()
                     self.reload_timer = t = threading.Timer(interval, self.reload)
+                    t.name = "ReloadTimer"
                     t.daemon = True
                     t.start()
                     self.reload_timer = t

@@ -107,4 +107,37 @@ configuration for running system
 2. create the Trigger that will enable it whenever you want.
 
 
+.. _propagation:
 
+propagation of new config
+-------------------------
+
+each time a config or trigger is updated/deleted/created, the dynamic_logging system must recalculate the new config.
+but to trigger that, it must be aware of the fact the something was updated. to make it available, there is 3 possibility
+
+- signal handling: the
+
+
+specials cases
+--------------
+
+django-dynamic-logging handle some specials cases for you by default.
+
+- if you update a config or a trigger it will compute the current config and the next one on all running
+  instance of your website (see :rel:`_propagation`)
+
+- if you enable the DEBUG (or lesser) level on django.db.backends, it will change the settings of your
+  databases connection to make sure the CursorDebugWrapper is used and will call the debug for all query.
+  if not, you will not see any query by default.
+
+you can override or add some special cases by adding your own special cases in
+`dynamic_logging.signals.AutoSignalsHandler.extra_signals`.
+
+settings
+--------
+
+you can add into your settings a DYNAMIC_LOGGING dict with the folowing key to customise the dynamic logger behavior
+
+- signals_auto: the list of special logging handlers. currently only db_debug is enabled
+- config_upgrade_propagator: the class that is charged to trigger a scheduler reload for all running instances of the website.
+                             see :ref:`_propagation`

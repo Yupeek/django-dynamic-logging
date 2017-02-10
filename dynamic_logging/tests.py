@@ -5,12 +5,14 @@ import json
 import logging.config
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.test.testcases import TestCase
 from django.utils import timezone
 
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import Scheduler, main_scheduler
+from dynamic_logging.signals import AutoSignalsHandler
 from dynamic_logging.templatetags.dynamic_logging import display_config, getitem
 
 
@@ -264,6 +266,10 @@ class ConfigApplyTest(TestCase):
             c.config,
             {'handlers': {'added': {}}, 'loggers': {'console': {'level': 'CRITICAL'}}}
         )
+
+    def test_config_property_getter_empty(self):
+        c = Config(name='lol', config_json='')
+        self.assertEqual(c.config, {})
 
     def test_default_config_by_default(self):
         loggers = Config.get_existing_loggers()
@@ -521,3 +527,75 @@ class TestTag(TestCase):
 
     def test_getitem(self):
         self.assertEqual(getitem({'a': True}, 'a'), True)
+
+
+class SignalHandlingTest(TestCase):
+
+    def test_auto_signal_handler(self):
+        a = AutoSignalsHandler()
+        self.assertRaises(ImproperlyConfigured, a.apply, ('dontexists',))
+
+    def test_auto_signal_customise(self):
+        cnt = []
+        def wrapper():
+            cnt.append(1)
+        a = AutoSignalsHandler()
+        a.extra_signals['exists'] = wrapper
+        a.apply(('exists',))
+        self.assertEqual(cnt, [1])
+
+    def test_auto_signal_overwrite(self):
+        cnt = []
+        def wrapper():
+            cnt.append(1)
+        a = AutoSignalsHandler()
+        a.extra_signals['db_debug'] = wrapper
+        a.apply(('db_debug',))
+        self.assertEqual(cnt, [1])
+
+    def test_db_debug_debug_bad_logger(self):
+        # bad
+        config = Config(name='nothing')
+        config.config = {"loggers": {
+            "django.db": {
+                "handlers": ["mock"],
+                "level": "DEBUG",
+            }
+        }}
+        config.apply()
+
+        with MockHandler.capture() as msg:
+            Config.objects.count()
+        self.assertEqual(msg['debug'], [])
+
+    def test_db_debug_not_debug(self):
+        # bad
+        config = Config(name='nothing')
+        config.config = {"loggers": {
+            "django.db": {
+                "handlers": ["mock"],
+                "level": 15,
+            }
+        }}
+        config.apply()
+
+        with MockHandler.capture() as msg:
+            Config.objects.count()
+        self.assertEqual(msg['debug'], [])
+
+    def test_db_debug_debug_ok(self):
+        config = Config(name='nothing')
+
+        config.config = {"loggers": {
+            "django.db.backends": {
+                "handlers": ["mock"],
+                "level": "DEBUG",
+            }
+        }}
+        config.apply()
+
+        with MockHandler.capture() as msg:
+            Config.objects.count()
+        self.assertEqual(len(msg['debug']), 1)
+        self.assertTrue('SELECT COUNT(*)' in msg['debug'][0])
+
