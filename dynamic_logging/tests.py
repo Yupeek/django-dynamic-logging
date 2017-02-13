@@ -3,6 +3,8 @@ import datetime
 import doctest
 import json
 import logging.config
+import threading
+from unittest.case import SkipTest
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -12,6 +14,7 @@ from django.utils import timezone
 
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
+from dynamic_logging.propagator import AmqpPropagator
 from dynamic_logging.scheduler import Scheduler, main_scheduler
 from dynamic_logging.signals import AutoSignalsHandler
 from dynamic_logging.templatetags.dynamic_logging import display_config, getitem
@@ -222,6 +225,115 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.current_trigger, Trigger.default())
         main_scheduler.wake(t, now_plus_2h)
         self.assertEqual(main_scheduler.current_trigger, t)
+
+
+@override_settings(
+    DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}}
+)
+class AmqpPropagatorTest(TestCase):
+    amqp_url = 'amqp://guest:guest@localhost:5672/%2F'
+
+    @classmethod
+    def setUpClass(cls):
+        main_scheduler.reset_timer()
+        super(AmqpPropagatorTest, cls).setUpClass()
+        try:
+            import pika
+            import pika.exceptions
+        except ImportError:
+            raise SkipTest("pika is not importable")
+        amqp_url = cls.amqp_url
+        try:
+            pika.BlockingConnection(pika.URLParameters(amqp_url))
+        except pika.exceptions.ConnectionClosed:
+            raise SkipTest("no rabbitmq running for %s" % amqp_url)
+
+    def setUp(self):
+        super(AmqpPropagatorTest, self).setUp()
+        import pika
+        amqp_url = self.amqp_url
+        self.connection = pika.BlockingConnection(pika.URLParameters(amqp_url))
+
+    def test_message_sent(self):
+        # this test try to run a temporary connection and check if the AmqpPropagator
+        # send a message wherever a Config/Trigger is created/updated
+
+        # all this threading stuff is ugly... i know
+        propagator = AmqpPropagator({'url': self.amqp_url, 'echange_name': 'my_test_exchange'})
+
+        def fake_reload(*args, **kwargs):
+            pass
+
+        propagator.reload_scheduler = fake_reload
+        propagator.setup()
+        np = []
+        channel = self.connection.channel()
+
+        called = threading.Event()
+
+        def callback(ch, method, properties, body):
+            called.set()
+            np.append(1)
+
+        ended = threading.Event()
+        start = threading.Event()
+
+        def target():
+            start.set()
+
+            while channel._consumer_infos:
+                channel.connection.process_data_events(time_limit=1)
+            ended.set()
+
+        queue = channel.queue_declare(exclusive=True)
+        channel.queue_bind(exchange='my_test_exchange', queue=queue.method.queue, routing_key='')
+        channel.basic_consume(callback, queue=queue.method.queue)
+        self.assertEqual(np, [])
+        thr = threading.Thread(target=target)
+        thr.daemon = True
+        thr.start()
+
+        if not start.wait(4):
+            raise Exception("failed to start cunsumer")
+        c = Config.objects.create(name="name", config_json='{}')
+        self.assertTrue(called.wait(4))
+        called.clear()
+        self.assertEqual(np, [1])
+        c.config_json = '{}'
+        c.save()
+        self.assertTrue(called.wait(1))
+        called.clear()
+        self.assertEqual(np, [1, 1])
+        Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=c)
+        self.assertTrue(called.wait(1))
+        called.clear()
+        self.assertEqual(np, [1, 1, 1])
+        channel.stop_consuming()
+        self.connection.close()
+        self.assertTrue(ended.wait(4))
+
+    def test_message_received(self):
+        # this test try to run a temporary connection and check if the AmqpPropagator
+        # listen for message to trigger a scheduler_reload
+
+        config = Config.objects.create(name="name", config_json='{}')
+        Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=config)
+
+        propagator = AmqpPropagator({'url': self.amqp_url, 'echange_name': 'my_test_exchange'})
+        reload_called = threading.Event()
+
+        def fake_reload(*args, **kwargs):
+            reload_called.set()
+
+        propagator.reload_scheduler = fake_reload
+        propagator.setup()
+        channel = self.connection.channel()
+
+        self.assertIsNone(main_scheduler.current_trigger.pk)
+        main_scheduler.trigger_applied.clear()
+        channel.basic_publish(exchange='my_test_exchange', routing_key="", body="")
+
+        self.assertTrue(reload_called.wait(1))
 
 
 class ConfigApplyTest(TestCase):

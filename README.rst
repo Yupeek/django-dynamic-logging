@@ -113,10 +113,31 @@ propagation of new config
 -------------------------
 
 each time a config or trigger is updated/deleted/created, the dynamic_logging system must recalculate the new config.
-but to trigger that, it must be aware of the fact the something was updated. to make it available, there is 3 possibility
+but to work, it must be aware of the fact the something was updated. to make it available, there is 3 possibility.
+in mono-processing, where the logging config is global to all thread, it's not a issues, but in multi-process (like with
+gunicorn setup) or even multi-server, we must propagate the info that one running instance has just changed something in
+the config.
 
-- signal handling: the
+for doing this, there is 4 Propagator shiped with dynamic_logging:
 
+- ThreadSignalPropagator: the default one, it work in real-time in a mono-server, mono-process setup. it may not be possible
+  in real production to have this setup.
+- DummyPropagator: nothing happen whene a config is updated. all the triggers and next trigger application is computed only
+  at startup time
+- TimerPropagator: it check a modification in the config each `interval` seconds. this work, but is ineficient.
+- AmqpPropagator: the best choice for production, but it require a running Amqp message queue broker (tested upon RabbitMQ).
+  it take in config the url of the server, and will connect each running instance to it. each time an instance update the config,
+  all instance will be triggered and will reload theire config in near realtime.
+
+
+to change the propagator, you can use the folowing settings:
+
+.. code-block:: python
+
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
+                               'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}
+    }
 
 specials cases
 --------------
@@ -124,7 +145,7 @@ specials cases
 django-dynamic-logging handle some specials cases for you by default.
 
 - if you update a config or a trigger it will compute the current config and the next one on all running
-  instance of your website (see :rel:`_propagation`)
+  instance of your website (see :ref:`propagation`)
 
 - if you enable the DEBUG (or lesser) level on django.db.backends, it will change the settings of your
   databases connection to make sure the CursorDebugWrapper is used and will call the debug for all query.
@@ -140,4 +161,4 @@ you can add into your settings a DYNAMIC_LOGGING dict with the folowing key to c
 
 - signals_auto: the list of special logging handlers. currently only db_debug is enabled
 - config_upgrade_propagator: the class that is charged to trigger a scheduler reload for all running instances of the website.
-                             see :ref:`_propagation`
+                             see :ref:`propagation`

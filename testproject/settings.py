@@ -180,11 +180,39 @@ LOGGING = {
             'handlers': ['null', 'devnull'],
             'level': 'DEBUG',
             'propagate': False
+        },
+        'dynamic_logging': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False
+        },
+        'dynamic_logging.scheduler': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False
         }
     }
 }
 
 INTERNAL_IPS = ['127.0.0.1']
-DYNAMIC_LOGGING = {
-    "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {}}
-}
+_timer_prop = os.environ.get('TIMER_PROPAGATOR', 'signal')
+if _timer_prop == 'signal':
+
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
+    }
+elif _timer_prop == 'timer':
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {'interval': 15}}
+    }
+elif _timer_prop == 'amqp':
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
+                               'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}
+    }
+elif _timer_prop == 'dummy':
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}
+    }
+else:
+    raise Exception("%s is not a valid timer propagator. choose one of signal,timer,amqp,dummy")

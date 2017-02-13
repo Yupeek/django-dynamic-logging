@@ -4,6 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import logging
 import threading
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import post_delete, post_save
 from django.utils import timezone
 from django.utils.module_loading import import_string
@@ -58,12 +59,15 @@ class Propagator(object):
         """
         raise NotImplementedError()
 
-    def reload_scheduler(self):
+    def reload_scheduler(self, *args, **kwargs):
         """
         called whene we recieved a propagated order to reload
         :return:
         """
-        main_scheduler.reload()
+        try:
+            main_scheduler.reload()
+        except Exception:
+            logger.exception("failed to reload the scheduler")
 
 
 class DummyPropagator(Propagator):
@@ -134,3 +138,66 @@ class TimerPropagator(Propagator):
 
     def propagate(self):
         pass
+
+
+class AmqpPropagator(Propagator):
+    """
+    the most reliable propagator that use a message broker to propagatate the reloading of the current config
+    for all instances
+
+    it require, in the settings, the url to use to connect.
+    the name of the exchange to create can be given too. by default it will logging_propagator
+
+    >>> DYNAMIC_LOGGING = {
+    ...     "upgrade_propagator": {
+    ...         'class': "dynamic_logging.propagator.AmqpPropagator",
+    ...         'config': {
+    ...             'url': 'amqp://guest:guest@localhost:5672/%2F',
+    ...             'exchange_name': 'loger_propagator',
+    ...         }
+    ...     }
+    ... }
+    """
+
+    def __init__(self, conf):
+        super(AmqpPropagator, self).__init__(conf)
+        self.connection = self.channel = self.exchange_name = None
+        self.amqp_thread = None
+
+    def setup(self):
+        try:
+            import pika
+        except ImportError:
+            raise ImproperlyConfigured("AmqpPropagator require the pika library to be installed.")
+        url = self.conf.get("url")
+        if not url:
+            raise ImproperlyConfigured("AmqpPropagator require the url of the message broker in the setting "
+                                       "DYNAMIC_LOGGING['upgrade_propagator']['config']. please refer to the pika doc "
+                                       "to build it : "
+                                       "http://pika.readthedocs.io/en/0.10.0/examples/using_urlparameters.html")
+        self.connection = pika.BlockingConnection(pika.URLParameters(url))
+        self.channel = channel = self.connection.channel()
+        self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
+        channel.exchange_declare(exchange=exchange_name,
+                                 type='fanout')
+        queue = channel.queue_declare(exclusive=True)
+        queue_name = queue.method.queue
+        channel.queue_bind(exchange=exchange_name, queue=queue_name)
+
+        channel.basic_consume(self.reload_scheduler, queue=queue_name, no_ack=True)
+        self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=channel.start_consuming)
+        self.amqp_thread.daemon = True
+        self.amqp_thread.start()
+        super(AmqpPropagator, self).setup()
+
+    def propagate(self):
+        self.channel.basic_publish(
+            exchange=self.exchange_name,
+            routing_key='',
+            body='reload config trigered'
+        )
+
+    def teardown(self):
+        self.connection.ioloop.stop()
+        self.amqp_thread = None
+        self.connection = self.channel = self.exchange_name = None

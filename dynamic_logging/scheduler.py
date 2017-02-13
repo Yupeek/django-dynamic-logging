@@ -34,6 +34,13 @@ class Scheduler(object):
         a bool to prevent the threads to start, for testing purpose
         """
         self.reload_timer = None
+        """
+        the local timer for the defered reload
+        """
+        self.trigger_applied = threading.Event()
+        """
+        a simple Event used to test each time a trigger is applied
+        """
 
     def disable(self):
         """
@@ -160,8 +167,7 @@ class Scheduler(object):
         except Trigger.DoesNotExist:
             return None
         try:
-            t.apply()
-            self.current_trigger = t
+            self.apply(t)
             return t
         except ValueError as e:
             logger.exception("error with current logger activation trigger=%s, config=%s => %s",
@@ -176,9 +182,9 @@ class Scheduler(object):
         """
         if self._enabled:
             with self._lock:
+                if self.reload_timer is not None:
+                    self.reload_timer.cancel()
                 if interval is not None:
-                    if self.reload_timer is not None:
-                        self.reload_timer.cancel()
                     self.reload_timer = t = threading.Timer(interval, self.reload)
                     t.name = "ReloadTimer"
                     t.daemon = True
@@ -215,7 +221,10 @@ class Scheduler(object):
 
     def apply(self, trigger):
         if self.current_trigger != trigger:
+            logger.debug('applying trigger %s', trigger)
             trigger.apply()
+            self.current_trigger = trigger
+            self.trigger_applied.set()
 
 
 main_scheduler = Scheduler()
