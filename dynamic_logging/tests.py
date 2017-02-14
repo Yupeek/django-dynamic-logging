@@ -8,7 +8,7 @@ from unittest.case import SkipTest
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.test.testcases import TestCase, SimpleTestCase
+from django.test.testcases import TestCase
 from django.test.utils import override_settings
 from django.utils import timezone
 
@@ -237,16 +237,16 @@ class AmqpPropagatorTest(TestCase):
     def setUpClass(cls):
         main_scheduler.reset_timer()
         super(AmqpPropagatorTest, cls).setUpClass()
-        try:
-            import pika
-            import pika.exceptions
-        except ImportError:
-            raise SkipTest("pika is not importable")
 
     def setUp(self):
         super(AmqpPropagatorTest, self).setUp()
-        import pika
-        import pika.exceptions
+        try:
+            import pika
+            import pika.exceptions
+
+        except ImportError:
+            raise SkipTest("pika is not importable")
+
         amqp_url = self.amqp_url
         try:
             self.connection = pika.BlockingConnection(pika.URLParameters(amqp_url))
@@ -340,40 +340,47 @@ class AmqpPropagatorTest(TestCase):
 @override_settings(
     DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}}
 )
-class TimerPropagatorTest(SimpleTestCase):
+class TimerPropagatorTest(TestCase):
 
-    def setUp(self):
-        main_scheduler.reset_timer()
+    def test_timer_check_call(self):
+        propagator = TimerPropagator({'interval': 0.15})
+        check_called = threading.Event()
+
+        def fake_check(*args, **kwargs):
+            check_called.set()
+
+        propagator.check_new_config = fake_check
+
+        propagator.setup()
+        self.assertTrue(check_called.wait(1))
+        propagator.teardown()
+        check_called.clear()
+        self.assertFalse(check_called.wait(0.5))
 
     def test_timer_propagator(self):
         # setup proagator
-        propagator = TimerPropagator({'interval': 0.15})
+        propagator = TimerPropagator({'interval': 0.25})
         reload_called = threading.Event()
 
         def fake_reload(*args, **kwargs):
             reload_called.set()
 
         propagator.reload_scheduler = fake_reload
-        propagator.setup()
-        self.assertFalse(reload_called.wait(0.5))
+        propagator.check_new_config()
+        self.assertFalse(reload_called.isSet())
         reload_called.clear()
         # setup models to trigger propagator
         config = Config.objects.create(name="name", config_json='{}')
         t = Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=config)
         # start test :
-
-        self.assertTrue(reload_called.wait(0.5))
+        propagator.check_new_config()
+        self.assertTrue(reload_called.isSet())
         # detect supressions
         reload_called.clear()
         t.delete()
-        self.assertTrue(reload_called.wait(0.5))
+        propagator.check_new_config()
+        self.assertTrue(reload_called.isSet())
         # teardown and check nothing changed
-        propagator.teardown()
-        t = Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=config)
-        reload_called.clear()
-        self.assertFalse(reload_called.wait(0.5))
-        t.delete()
-        config.delete()
 
 
 class ConfigApplyTest(TestCase):

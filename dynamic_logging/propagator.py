@@ -44,8 +44,11 @@ class Propagator(object):
         post_delete.connect(self.on_config_changed, sender=Config)
 
     def teardown(self):
-        post_save.disconnect(self.on_config_changed)
-        post_delete.disconnect(self.on_config_changed)
+        post_save.disconnect(self.on_config_changed, sender=Trigger)
+        post_delete.disconnect(self.on_config_changed, sender=Trigger)
+
+        post_save.disconnect(self.on_config_changed, sender=Config)
+        post_delete.disconnect(self.on_config_changed, sender=Config)
 
     def on_config_changed(self, *args, **kwargs):
         """
@@ -134,7 +137,7 @@ class TimerPropagator(Propagator):
     def check_new_config(self):
         now = timezone.now()
         last_wake, self.last_wake = self.last_wake, now
-        triggers = list(Trigger.objects.only('pk','last_update'))
+        triggers = list(Trigger.objects.only('pk', 'last_update'))
         configs = list(Config.objects.only('pk', 'last_update'))
         triggers_pks = set(map(operator.attrgetter('pk'), triggers))
         configs_pks = set(map(operator.attrgetter('pk'), configs))
