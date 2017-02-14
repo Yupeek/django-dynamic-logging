@@ -33,6 +33,14 @@ class Scheduler(object):
         """
         a bool to prevent the threads to start, for testing purpose
         """
+        self.reload_timer = None
+        """
+        the local timer for the defered reload
+        """
+        self.trigger_applied = threading.Event()
+        """
+        a simple Event used to test each time a trigger is applied
+        """
 
     def disable(self):
         """
@@ -73,7 +81,7 @@ class Scheduler(object):
         # - the start of a new one
 
         try:
-            next_trigger = Trigger.objects.filter(start_date__gt=after).earliest('start_date')
+            next_trigger = Trigger.objects.filter(is_active=True, start_date__gt=after).earliest('start_date')
         except Trigger.DoesNotExist:
             # no next trigger
             next_trigger = None  # type: Trigger
@@ -102,7 +110,7 @@ class Scheduler(object):
         ):
             # b =>
             try:
-                last_active = Trigger.objects.valid_at(current.end_date).earliest('start_date')
+                last_active = Trigger.objects.filter(is_active=True).valid_at(current.end_date).earliest('start_date')
             except Trigger.DoesNotExist:
                 # no trigger active at the end of the current one, the default will be enabled
                 last_active = Trigger.default()
@@ -115,10 +123,11 @@ class Scheduler(object):
     def set_next_wake(self, trigger, at):
         logger.debug("next trigger to enable : %s at %s", trigger, at, extra={'next_date': at})
         with self._lock:
-            self.reset()
+            self.reset_timer()
             interval = (at - timezone.now()).total_seconds()
             self.next_timer = threading.Timer(interval,
                                               functools.partial(self.wake, trigger=trigger, date=at))
+            self.next_timer.name = 'ApplyTimer for %s' % trigger.pk
             self.next_timer.daemon = True  # prevent program hanging until netx trigger
             self.next_timer.trigger = trigger
             self.next_timer.at = at
@@ -127,11 +136,26 @@ class Scheduler(object):
                 self.next_timer.start()
 
     def reset(self):
+        """
+        reset the logging to the default settings. disable the timer to change it
+        :return:
+        """
+        with self._lock:
+            self.reset_timer()
+            self.current_trigger = Trigger.default()
+
+    def reset_timer(self):
+        """
+        reset the timer
+        :return:
+        """
         with self._lock:
             if self.next_timer is not None:
                 self.next_timer.cancel()
                 self.next_timer = None
-                self.current_trigger = Trigger.default()
+            if self.reload_timer is not None:
+                self.reload_timer.cancel()
+                self.reload_timer = None
 
     def activate_current(self):
         """
@@ -139,22 +163,36 @@ class Scheduler(object):
         :return:
         """
         try:
-            t = Trigger.objects.valid_at(timezone.now()).latest('start_date')
-            t.apply()
-            self.current_trigger = t
-            return t
+            t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
         except Trigger.DoesNotExist:
             return None
+        try:
+            self.apply(t)
+            return t
+        except ValueError as e:
+            logger.exception("error with current logger activation trigger=%s, config=%s => %s",
+                             t.id, t.config_id, str(e))
+            return None
 
-    def reload(self):
+    def reload(self, interval=None):
         """
         cancel the timer and the next trigger, and
-        compute the next one
+        compute the next one. can be done after an interval to delay the setup for some time.
         :return:
         """
         if self._enabled:
             with self._lock:
-                self.reset()
+                if self.reload_timer is not None:
+                    self.reload_timer.cancel()
+                if interval is not None:
+                    self.reload_timer = t = threading.Timer(interval, self.reload)
+                    t.name = "ReloadTimer"
+                    t.daemon = True
+                    t.start()
+                    self.reload_timer = t
+                    return
+
+                self.reset_timer()
                 current = self.activate_current()
                 trigger, at = self.get_next_wake(current=current)
                 if at:
@@ -178,11 +216,14 @@ class Scheduler(object):
             # get the next trigger valid at the current expected date
             # we don't use timezone.now() to prevent the case where threading.Timer wakeup some ms befor the expected
             # date
-            self.set_next_wake(next_trigger, at)
+            if at:
+                self.set_next_wake(next_trigger, at)
 
     def apply(self, trigger):
-        if self.current_trigger != trigger:
-            trigger.apply()
+        logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
+        trigger.apply()
+        self.current_trigger = trigger
+        self.trigger_applied.set()
 
 
 main_scheduler = Scheduler()

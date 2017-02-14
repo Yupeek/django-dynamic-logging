@@ -3,3 +3,5 @@ include README.rst
 include CONTRIBUTING.rst
 include requirements.txt
 include test_requirements.txt
+recursive-include dynamic_logging/static *.js *.css
+recursive-include dynamic_logging/templates *.html

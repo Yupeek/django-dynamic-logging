@@ -39,9 +39,11 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'dynamic_logging',
     'testproject.testapp',
+    'debug_toolbar',
 )
 
 MIDDLEWARE_CLASSES = (
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -57,7 +59,7 @@ ROOT_URLCONF = 'testproject.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'testproject', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -86,7 +88,12 @@ DATABASES = {
     }
 }
 
-TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
+try:  # pragma: nocover
+    import teamcity
+    if teamcity.is_running_under_teamcity():  # pragma: nocover
+        TEST_RUNNER = "teamcity.django.TeamcityDjangoRunner"
+except ImportError:  # pragma: nocover
+    pass
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
@@ -106,6 +113,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "testproject", "static"),
+]
+
+STATIC_ROOT = os.path.join(BASE_DIR, "static_root")
 
 
 LOGGING = {
@@ -127,6 +140,9 @@ LOGGING = {
     'filters': {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse'
+        },
+        'polite': {
+            '()': 'testproject.filter.PoliteFilter'
         }
     },
     'handlers': {
@@ -157,19 +173,52 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['null'],
             'level': 'ERROR',
             'propagate': True,
         },
         'django.request': {
-            'handlers': ['console'],
+            'handlers': ['null'],
             'level': 'ERROR',
             'propagate': True,
         },
         'testproject.testapp': {
-            'handlers': ['console', 'null', 'devnull'],
+            'handlers': ['null', 'devnull'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+        'dynamic_logging': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False
+        },
+        'dynamic_logging.scheduler': {
+            'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False
         }
     }
 }
+
+INTERNAL_IPS = ['127.0.0.1']
+_timer_prop = os.environ.get('TIMER_PROPAGATOR', 'signal')
+if _timer_prop == 'signal':
+
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
+    }
+elif _timer_prop == 'timer':  # pragma: nocover
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {'interval': 15}}
+    }
+elif _timer_prop == 'amqp':  # pragma: nocover
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
+                               'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}
+    }
+elif _timer_prop == 'dummy':  # pragma: nocover
+    DYNAMIC_LOGGING = {
+        "upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}
+    }
+else:  # pragma: nocover
+    raise Exception("%s is not a valid timer propagator. choose one of signal,timer,amqp,dummy")

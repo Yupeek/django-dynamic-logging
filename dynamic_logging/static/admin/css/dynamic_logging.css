@@ -1,0 +1,39 @@
+.flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.config_display {
+    margin-bottom: 30px;
+}
+
+.flex-item {
+    flex: 1;
+    border: solid #417690 1px;
+    border-radius: 10px;
+    margin: 5px;
+    padding:3px;
+}
+
+#current_config, #next_config {
+    border: none;
+}
+
+#id_config_json_display {
+    display:inline-block;
+}
+
+.flex-item > h2 {
+    margin: -4px -4px 0 -4px;
+    border-radius: 10px 10px 0 0;
+}
+
+.my-error-tip {
+    display: none;
+    color: red;
+}
+
+td.my-error {
+    background: pink;
+}

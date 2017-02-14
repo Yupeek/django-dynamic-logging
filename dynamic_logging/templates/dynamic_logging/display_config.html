@@ -1,0 +1,25 @@
+{% load dynamic_logging %}
+<div class="flex-container">
+    {% for logger_name, logger in config.config.loggers.items %}
+        <div class="flex-item">
+            <h5>{{ logger_name }}</h5>
+            <p>level: {{ logger.level }}</p>
+            {% if logger.filters %}
+            <p>filters: {{ logger.filters|join:',' }}</p>
+            {% endif %}
+            <p>
+                handlers:
+            <ul>
+                {% for handler in logger.handlers %}
+                    <li>
+                        {{ handler }}:[<i>{{ handlers|getitem:handler|getitem:"level" }}</i>]
+
+                        {{ handlers|getitem:handler|getitem:'filters'|default:''|join:',' }}
+                    </li>
+                {% endfor %}
+            </ul>
+            </p>
+        </div>
+    {% endfor %}
+
+</div>

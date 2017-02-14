@@ -11,7 +11,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-version = dynamic_logging.__VERSION__
+version = dynamic_logging.__version__
 
 if 'DJANGO_SETTINGS_MODULE' not in os.environ:
     os.environ['DJANGO_SETTINGS_MODULE'] = 'testsettings'
@@ -48,6 +48,8 @@ setup(
     ],
     packages=[
         'dynamic_logging',
+        'dynamic_logging.migrations',
+        'dynamic_logging.templatetags',
     ],
     include_package_data=True,
     license="GNU GENERAL PUBLIC LICENSE",
