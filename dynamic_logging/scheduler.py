@@ -220,11 +220,10 @@ class Scheduler(object):
                 self.set_next_wake(next_trigger, at)
 
     def apply(self, trigger):
-        if self.current_trigger != trigger:
-            logger.debug('applying trigger %s', trigger)
-            trigger.apply()
-            self.current_trigger = trigger
-            self.trigger_applied.set()
+        logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
+        trigger.apply()
+        self.current_trigger = trigger
+        self.trigger_applied.set()
 
 
 main_scheduler = Scheduler()
