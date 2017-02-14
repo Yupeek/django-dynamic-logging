@@ -2,6 +2,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
+import operator
 import threading
 
 from django.core.exceptions import ImproperlyConfigured
@@ -117,6 +118,7 @@ class TimerPropagator(Propagator):
         super(TimerPropagator, self).__init__(conf)
         self.timer = None
         self.last_wake = timezone.now()
+        self.last_pks = {'triggers': set(), 'configs': set()}
 
     def setup(self):
         # we don't call super since we will update this process each n sec
@@ -131,10 +133,17 @@ class TimerPropagator(Propagator):
 
     def check_new_config(self):
         now = timezone.now()
-        if (Trigger.objects.filter(last_update__gte=self.last_wake).exists() or
-                Config.objects.filter(last_update__gte=self.last_wake).exists()):
-            self.last_wake = now
+        last_wake, self.last_wake = self.last_wake, now
+        triggers = list(Trigger.objects.only('pk','last_update'))
+        configs = list(Config.objects.only('pk', 'last_update'))
+        triggers_pks = set(map(operator.attrgetter('pk'), triggers))
+        configs_pks = set(map(operator.attrgetter('pk'), configs))
+        if any(map(lambda o: o.last_update >= last_wake, triggers + configs)) \
+                or (self.last_pks['triggers'] - triggers_pks) \
+                or (self.last_pks['configs'] - configs_pks):
+
             self.reload_scheduler()
+        self.last_pks = {'triggers': triggers_pks, 'configs': configs_pks}
 
     def propagate(self):
         pass
@@ -167,10 +176,10 @@ class AmqpPropagator(Propagator):
     def setup(self):
         try:
             import pika
-        except ImportError:
+        except ImportError:  # pragma: nocover
             raise ImproperlyConfigured("AmqpPropagator require the pika library to be installed.")
         url = self.conf.get("url")
-        if not url:
+        if not url:  # pragma: nocover
             raise ImproperlyConfigured("AmqpPropagator require the url of the message broker in the setting "
                                        "DYNAMIC_LOGGING['upgrade_propagator']['config']. please refer to the pika doc "
                                        "to build it : "

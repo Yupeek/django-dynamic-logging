@@ -207,18 +207,18 @@ if _timer_prop == 'signal':
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.ThreadSignalPropagator", 'config': {}}
     }
-elif _timer_prop == 'timer':
+elif _timer_prop == 'timer':  # pragma: nocover
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {'interval': 15}}
     }
-elif _timer_prop == 'amqp':
+elif _timer_prop == 'amqp':  # pragma: nocover
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
                                'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}
     }
-elif _timer_prop == 'dummy':
+elif _timer_prop == 'dummy':  # pragma: nocover
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}
     }
-else:
+else:  # pragma: nocover
     raise Exception("%s is not a valid timer propagator. choose one of signal,timer,amqp,dummy")

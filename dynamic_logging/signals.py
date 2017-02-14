@@ -20,12 +20,6 @@ triggered each time a config is applied
 """
 
 
-def reload_timers_on_trigger_change(sender, **kwargs):
-    # skip circular import
-    from dynamic_logging.scheduler import main_scheduler  # NOQA
-    main_scheduler.reload()
-
-
 class AutoSignalsHandler(object):
     extra_signals = {}
 

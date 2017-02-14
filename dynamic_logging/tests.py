@@ -8,13 +8,13 @@ from unittest.case import SkipTest
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.test.testcases import TestCase
+from django.test.testcases import TestCase, SimpleTestCase
 from django.test.utils import override_settings
 from django.utils import timezone
 
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
-from dynamic_logging.propagator import AmqpPropagator
+from dynamic_logging.propagator import AmqpPropagator, TimerPropagator
 from dynamic_logging.scheduler import Scheduler, main_scheduler
 from dynamic_logging.signals import AutoSignalsHandler
 from dynamic_logging.templatetags.dynamic_logging import display_config, getitem
@@ -242,17 +242,16 @@ class AmqpPropagatorTest(TestCase):
             import pika.exceptions
         except ImportError:
             raise SkipTest("pika is not importable")
-        amqp_url = cls.amqp_url
-        try:
-            pika.BlockingConnection(pika.URLParameters(amqp_url))
-        except pika.exceptions.ConnectionClosed:
-            raise SkipTest("no rabbitmq running for %s" % amqp_url)
 
     def setUp(self):
         super(AmqpPropagatorTest, self).setUp()
         import pika
+        import pika.exceptions
         amqp_url = self.amqp_url
-        self.connection = pika.BlockingConnection(pika.URLParameters(amqp_url))
+        try:
+            self.connection = pika.BlockingConnection(pika.URLParameters(amqp_url))
+        except pika.exceptions.ConnectionClosed:
+            raise SkipTest("no rabbitmq running for %s" % amqp_url)
 
     def test_message_sent(self):
         # this test try to run a temporary connection and check if the AmqpPropagator
@@ -311,6 +310,7 @@ class AmqpPropagatorTest(TestCase):
         channel.stop_consuming()
         self.connection.close()
         self.assertTrue(ended.wait(4))
+        propagator.teardown()
 
     def test_message_received(self):
         # this test try to run a temporary connection and check if the AmqpPropagator
@@ -334,6 +334,46 @@ class AmqpPropagatorTest(TestCase):
         channel.basic_publish(exchange='my_test_exchange', routing_key="", body="")
 
         self.assertTrue(reload_called.wait(1))
+        propagator.teardown()
+
+
+@override_settings(
+    DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}}
+)
+class TimerPropagatorTest(SimpleTestCase):
+
+    def setUp(self):
+        main_scheduler.reset_timer()
+
+    def test_timer_propagator(self):
+        # setup proagator
+        propagator = TimerPropagator({'interval': 0.15})
+        reload_called = threading.Event()
+
+        def fake_reload(*args, **kwargs):
+            reload_called.set()
+
+        propagator.reload_scheduler = fake_reload
+        propagator.setup()
+        self.assertFalse(reload_called.wait(0.5))
+        reload_called.clear()
+        # setup models to trigger propagator
+        config = Config.objects.create(name="name", config_json='{}')
+        t = Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=config)
+        # start test :
+
+        self.assertTrue(reload_called.wait(0.5))
+        # detect supressions
+        reload_called.clear()
+        t.delete()
+        self.assertTrue(reload_called.wait(0.5))
+        # teardown and check nothing changed
+        propagator.teardown()
+        t = Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=config)
+        reload_called.clear()
+        self.assertFalse(reload_called.wait(0.5))
+        t.delete()
+        config.delete()
 
 
 class ConfigApplyTest(TestCase):
