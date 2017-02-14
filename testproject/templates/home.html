@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Django Dynamic Logging</title>
+    <style>img {border: solid black 1px; border-radius: 15px;}</style>
+</head>
+<body>
+
+<h1>Welcome to django Dynamic Logging test page</h1>
+<p>
+    this project hosted on github is meant to update the python logging setting at runtime and in live running systems.<br/>
+    to try it in this demo, go to the <a href="{% url 'admin:app_list' app_label='dynamic_logging' %}">admin</a> ,
+    login and play with the configurations.<br />
+    <img src="{% static 'screenshot/DL_home.png' %}" alt="admin home" />
+</p>
+
+<h2>how to start</h2>
+
+<h4>create a config</h4>
+<p>
+    a config represent the full logging configuration for all the python process that run django. only one
+    config can be enabled at a given time. a config can override the folowing logging property:
+</p>
+<ul>
+    <li>handlers level</li>
+    <li>loggers list (remove,add)</li>
+    <li>logger level</li>
+    <li>logger handlers list</li>
+    <li>logger propagate</li>
+</ul>
+    <img src="{% static 'screenshot/create_config.png' %}" alt="create config screenshot" />
+
+
+<h4>create a trigger</h4>
+
+<p>
+    to enable a config, one of his triggers must be enabled and the latest valid trigger. a Trigger have a start_date and
+    a end_date. if the current time is between them, your trigger is valid. if you have more than one trigger valid at a given
+    time, the one with the latest start_date will be the chosen one.
+    you can put an empty date into start_date and end_date which mean from startup and forever respectively.<br />
+    <img src="{% static 'screenshot/create_trigger.png' %}" alt="create trigger screenshot" />
+
+</p>
+
+<h4>check the current config</h4>
+
+<p>
+    to check the current config, the admin's config list will tell you which one is active.
+    <img src="{% static 'screenshot/config_list.png' %}" alt="screen config list"/>
+</p>
+
+</body>
+</html>
