@@ -166,7 +166,8 @@ class AmqpPropagator(Propagator):
     ...         'config': {
     ...             'url': 'amqp://guest:guest@localhost:5672/%2F',
     ...             'exchange_name': 'loger_propagator',
-    ...         }
+    ...         },
+    ...         'on_error': 'raise',
     ...     }
     ... }
     """
