@@ -37,3 +37,13 @@
 td.my-error {
     background: pink;
 }
+
+tr.logger_list > td.new-item {
+    background-color: rgba(0, 128, 0, 0.55);
+    transition: all .5s ease-in-out;
+}
+
+tr.logger_list > td:not(.new-item) {
+    background-color: inherit;
+    transition: all .5s ease-in-out;
+}

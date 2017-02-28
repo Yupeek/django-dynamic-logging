@@ -50,13 +50,7 @@ function dump_form(data) {
 }
 
 function logging_widget(anchor, data, extra_select) {
-  console.debug(anchor, data);
-  var logger_conifg = {
-      "loggers": [
-        {"name": "django", "level": "1", "handlers": ["devnull"]},
-        {"name": "django.db", "level": "3", "handlers": ["devnull"]}
-      ]
-    }, levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+  var levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
     handlers = extra_select.handlers,
     filters = extra_select.filters,
     select_size = Math.max(handlers.length, filters.length),
@@ -84,7 +78,7 @@ function logging_widget(anchor, data, extra_select) {
       "#loggers": {
         bind: "loggers",
         manifest: "Logger",
-        list: '<tr></tr>'
+        list: '<tr class="logger_list"></tr>'
       },
       "#handlers": {
         bind: "handlers",
@@ -97,7 +91,7 @@ function logging_widget(anchor, data, extra_select) {
       "#btn-addLogger": {
         bind: function (d, v) {
           if (v != null) {
-            this.my.insert("#loggers", 'after', {});
+            this.my.insert("#loggers", 0, {newitem: true});
           }
         },
         events: "click.my"
@@ -119,11 +113,14 @@ function logging_widget(anchor, data, extra_select) {
       init: function ($form) {
         $form.html(this.LoggerHTML);
       },
-      data: {'name': 'django.db', 'level': 'DEBUG', 'handlers': [], 'filters': []},
+      data: {'name': '<loggername>', 'level': 'DEBUG', 'handlers': [], 'filters': []},
       ui: {
         "#name": {
           bind: "name",
           check: function(data, value, $control){
+            if (value !== '<loggername>') {
+              delete data.newitem;
+            }
             var ctr = 0;
             $.each(global_data.loggers, function(i, data) {
               if (data.name === value){
@@ -131,9 +128,14 @@ function logging_widget(anchor, data, extra_select) {
               }
             });
             if (ctr > 1) {
-              return "the logger " + value + " is overriden ";
+              return "the logger " + value + " is duplicated ";
             }
+          },
+          css: {
+          'new-item': function (data, val) {
+            return data.newitem !== undefined;
           }
+        }
         },
         "#level": "level",
         "#propagate": function (d, v) {

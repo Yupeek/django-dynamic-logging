@@ -142,6 +142,8 @@ for doing this, there is 4 Propagator shiped with dynamic_logging:
   it take in config the url of the server, and will connect each running instance to it. each time an instance update the config,
   all instance will be triggered and will reload theire config in near realtime.
 
+the ``on_error`` config can be used to ``raise`` if the propagator fail tu setup or ``pass``[default] but log an error in
+``dynamic_logging.apps``
 
 to change the propagator, you can use the folowing settings:
 
@@ -149,7 +151,9 @@ to change the propagator, you can use the folowing settings:
 
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
-                               'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}
+                               'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'},
+                               'on_error': 'raise',  # or by default : 'pass'
+                               }
     }
 
 specials cases

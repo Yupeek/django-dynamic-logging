@@ -25,7 +25,7 @@ SECRET_KEY = '4e)56prmnaa806y!-*9iq#54m4#kgpijn0q*%w5me#g&*(sxs+'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
@@ -132,7 +132,7 @@ LOGGING = {
             'format': '%(levelname)s %(asctime)s %(message)s'
         },
         'colored': {  # a nice colored format for terminal output
-            'format': '\033[1;33m%(levelname)s\033[0m [\033[1;31m%(name)s'
+            'format': '\033[1;33m%(levelname)s\033[0m [\033[1;31m%(thread)d\033[0m [\033[1;31m%(name)s'
                       '\033[0m:\033[1;32m%(lineno)s'
                       '\033[0m:\033[1;35m%(funcName)s\033[0m] \033[1;37m%(message)s\033[0m'
         },
