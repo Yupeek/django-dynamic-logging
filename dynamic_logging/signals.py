@@ -4,7 +4,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import logging
 
 from django.core.exceptions import ImproperlyConfigured
-from django.db import connections
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.dispatch.dispatcher import Signal
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class AutoSignalsHandler(object):
         if not, no sql query will be activated.
         :return:
         """
-        old_cnx_val = {}
+        old_cnx_queries_logged_property = BaseDatabaseWrapper.queries_logged
 
         def db_debug_handler(sender, config, **kwargs):
             """
@@ -58,11 +58,10 @@ class AutoSignalsHandler(object):
             if not isinstance(lvl, int):
                 lvl = getattr(logging, lvl, 50)
             if lvl <= logging.DEBUG:
-                for alias in connections:
-                    old_cnx_val.setdefault(alias, connections[alias].force_debug_cursor)
-                    connections[alias].force_debug_cursor = True
+                logger.info("applying the fix for db_debug")
+                BaseDatabaseWrapper.queries_logged = True
             else:
-                for alias, val in list(old_cnx_val.items()):
-                    connections[alias].force_debug_cursor = val
-                    del old_cnx_val[alias]
+                logger.info("unapplying the fix for db_debug")
+                BaseDatabaseWrapper.queries_logged = old_cnx_queries_logged_property
+
         config_applied.connect(db_debug_handler, weak=False)

@@ -30,7 +30,13 @@ class DynamicLoggingConfig(AppConfig):
         if self.propagator is not None:
             self.propagator.teardown()
         self.propagator = Propagator.get_current()
-        self.propagator.setup()
+        try:
+            self.propagator.setup()
+        except Exception:
+            logger.exception("error while setting up the propagator %s" % self.propagator)
+            conf = get_setting('upgrade_propagator')
+            if conf.get('on_error', 'pass') == 'raise':
+                raise
 
     def ready(self):
         # import at ready time to prevent model loading before app ready

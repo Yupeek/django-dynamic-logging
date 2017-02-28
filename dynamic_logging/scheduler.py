@@ -29,6 +29,8 @@ class Scheduler(object):
         """
         :type: Trigger
         """
+        self.current_config_hash = None
+
         self.start_thread = True
         """
         a bool to prevent the threads to start, for testing purpose
@@ -165,6 +167,7 @@ class Scheduler(object):
         try:
             t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
         except Trigger.DoesNotExist:
+            self.apply(Trigger.default())
             return None
         try:
             self.apply(t)
@@ -200,7 +203,6 @@ class Scheduler(object):
                 else:
                     # no date to wake. we apply now this trigger and so be it
                     self.apply(trigger)
-                    self.current_trigger = trigger
 
     def wake(self, trigger, date):
         """
@@ -220,8 +222,14 @@ class Scheduler(object):
                 self.set_next_wake(next_trigger, at)
 
     def apply(self, trigger):
-        logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
-        trigger.apply()
+        hash_config = trigger.config.get_hash()
+        if self.current_config_hash == hash_config:
+            logger.debug("not applying currently active config %s", trigger,
+                         extra={'trigger': trigger, 'config': trigger.config.config_json})
+        else:
+            logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
+            trigger.apply()
+            self.current_config_hash = hash_config
         self.current_trigger = trigger
         self.trigger_applied.set()
 
