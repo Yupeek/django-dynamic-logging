@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
+import hashlib
 import json
 import logging
 import logging.config
@@ -164,6 +165,12 @@ class Config(models.Model):
 
             }
         self.config_json = json.dumps(res)
+
+    def get_hash(self):
+        h = hashlib.sha256()
+        h.update((u'%s' % self.pk).encode('utf-8'))
+        h.update(self.config_json.encode('utf-8'))
+        return h.digest()
 
     def apply(self, trigger=None):
         """

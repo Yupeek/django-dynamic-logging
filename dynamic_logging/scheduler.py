@@ -29,6 +29,8 @@ class Scheduler(object):
         """
         :type: Trigger
         """
+        self.current_config_hash = None
+
         self.start_thread = True
         """
         a bool to prevent the threads to start, for testing purpose
@@ -220,8 +222,14 @@ class Scheduler(object):
                 self.set_next_wake(next_trigger, at)
 
     def apply(self, trigger):
-        logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
-        trigger.apply()
+        hash_config = trigger.config.get_hash()
+        if self.current_config_hash == hash_config:
+            logger.debug("not applying currently active config %s", trigger,
+                         extra={'trigger': trigger, 'config': trigger.config.config_json})
+        else:
+            logger.debug('applying %s', trigger, extra={'trigger': trigger, 'config': trigger.config.config_json})
+            trigger.apply()
+            self.current_config_hash = hash_config
         self.current_trigger = trigger
         self.trigger_applied.set()
 

@@ -670,6 +670,22 @@ class ConfigApplyTest(TestCase):
             },
         })
 
+    def test_apply_by_scheduler_same_config(self):
+        called = []
+
+        c = Config(name="lol", config_json='{}')
+        t = Trigger(name='lol', config=c, start_date=None, end_date=None)
+        c.apply = lambda tt: called.append(tt)
+        main_scheduler.apply(t)
+        self.assertEqual(called, [t])
+        main_scheduler.apply(t)
+        self.assertEqual(called, [t])
+        c.config_json = ''
+        main_scheduler.apply(t)
+        self.assertEqual(called, [t, t])
+        main_scheduler.apply(t)
+        self.assertEqual(called, [t, t])
+
 
 class TestTag(TestCase):
     def test_display_config_current_auto(self):
