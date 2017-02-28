@@ -165,6 +165,7 @@ class Scheduler(object):
         try:
             t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
         except Trigger.DoesNotExist:
+            self.apply(Trigger.default())
             return None
         try:
             self.apply(t)
@@ -200,7 +201,6 @@ class Scheduler(object):
                 else:
                     # no date to wake. we apply now this trigger and so be it
                     self.apply(trigger)
-                    self.current_trigger = trigger
 
     def wake(self, trigger, date):
         """
