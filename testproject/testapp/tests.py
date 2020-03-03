@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 from django.test import TestCase
@@ -8,6 +11,7 @@ from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import main_scheduler
 from dynamic_logging.tests import now_plus
+from dynamic_logging.widgets import JsonLoggerWidget
 
 
 class TestPages(TestCase):
@@ -69,6 +73,13 @@ class TestAdminContent(TestCase):
 
     def tearDown(self):
         main_scheduler.reset()
+
+    def test_json_widget(self):
+        sentinel = deepcopy(settings.LOGGING['handlers'])
+        widget = JsonLoggerWidget()
+        merged = widget.merge_handlers_value({"loggers": {"blablabla": {"level": "ERROR",
+                                                               "handlers": ["console"], "propagate": True}}})
+        self.assertEqual(sentinel, merged)
 
     def test_logging_in_admin(self):
         response = self.client.get('/admin/')

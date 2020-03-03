@@ -31,7 +31,7 @@ class JsonLoggerWidget(Textarea):
         """
         res = deepcopy(settings.LOGGING['handlers'])
         for name, handler in res.items():
-            handler.update({k: v for k, v in current_val[name].items() if k in ('filters', 'level')})
+            handler.update({k: v for k, v in current_val.get(name, {}).items() if k in ('filters', 'level')})
         res = OrderedDict(sorted(res.items()))
         return res
 
