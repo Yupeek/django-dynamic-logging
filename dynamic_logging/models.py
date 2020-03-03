@@ -9,6 +9,7 @@ from copy import deepcopy
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import CASCADE
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
@@ -55,7 +56,7 @@ class Trigger(models.Model):
     start_date = models.DateTimeField(default=timezone.now, blank=True, null=True)
     end_date = models.DateTimeField(default=now_plus_2hours, blank=True, null=True)
 
-    config = models.ForeignKey('Config', related_name='triggers')
+    config = models.ForeignKey('Config', related_name='triggers', on_delete=CASCADE)
     last_update = models.DateTimeField(auto_now=True)
 
     @classmethod

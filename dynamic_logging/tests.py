@@ -4,6 +4,7 @@ import doctest
 import json
 import logging.config
 import threading
+from unittest import skip
 from unittest.case import SkipTest
 
 from django.conf import settings
@@ -284,9 +285,9 @@ class AmqpPropagatorTest(TestCase):
                 channel.connection.process_data_events(time_limit=1)
             ended.set()
 
-        queue = channel.queue_declare(exclusive=True)
+        queue = channel.queue_declare('', exclusive=True)
         channel.queue_bind(exchange='my_test_exchange', queue=queue.method.queue, routing_key='')
-        channel.basic_consume(callback, queue=queue.method.queue)
+        channel.basic_consume(on_message_callback=callback, queue=queue.method.queue)
         self.assertEqual(np, [])
         thr = threading.Thread(target=target)
         thr.daemon = True
@@ -304,7 +305,7 @@ class AmqpPropagatorTest(TestCase):
         called.clear()
         self.assertEqual(np, [1, 1])
         Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=c)
-        self.assertTrue(called.wait(1))
+        self.assertTrue(called.wait(4))
         called.clear()
         self.assertEqual(np, [1, 1, 1])
         channel.stop_consuming()

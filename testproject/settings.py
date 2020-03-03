@@ -42,13 +42,12 @@ INSTALLED_APPS = (
     'debug_toolbar',
 )
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -212,6 +211,8 @@ elif _timer_prop == 'timer':  # pragma: nocover
         "upgrade_propagator": {'class': "dynamic_logging.propagator.TimerPropagator", 'config': {'interval': 15}}
     }
 elif _timer_prop == 'amqp':  # pragma: nocover
+    # docker run -d --hostname rabbitmq --name rabbitmq -p 15672:15672 -p 5672:5672
+    #     -e RABBITMQ_DEFAULT_USER=guest -e RABBITMQ_DEFAULT_PASS=guest rabbitmq:3.6.6-management
     DYNAMIC_LOGGING = {
         "upgrade_propagator": {'class': "dynamic_logging.propagator.AmqpPropagator",
                                'config': {'url': 'amqp://guest:guest@localhost:5672/%2F'}}

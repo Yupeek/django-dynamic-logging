@@ -35,7 +35,7 @@ class JsonLoggerWidget(Textarea):
         res = OrderedDict(sorted(res.items()))
         return res
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         attrs = attrs or {}
         try:
             data = json.loads(value)

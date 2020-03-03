@@ -192,12 +192,12 @@ class AmqpPropagator(Propagator):
         self.channel = channel = self.connection.channel()
         self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
         channel.exchange_declare(exchange=exchange_name,
-                                 type='fanout')
-        queue = channel.queue_declare(exclusive=True)
+                                 exchange_type='fanout')
+        queue = channel.queue_declare(queue='', exclusive=True)
         queue_name = queue.method.queue
         channel.queue_bind(exchange=exchange_name, queue=queue_name)
 
-        channel.basic_consume(self.reload_scheduler, queue=queue_name, no_ack=True)
+        channel.basic_consume(queue=queue_name, on_message_callback=self.reload_scheduler, auto_ack=True)
         self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=channel.start_consuming)
         self.amqp_thread.daemon = True
         self.amqp_thread.start()
@@ -212,5 +212,6 @@ class AmqpPropagator(Propagator):
 
     def teardown(self):
         self.connection._impl.ioloop.stop()
+
         self.amqp_thread = None
         self.connection = self.channel = self.exchange_name = None
