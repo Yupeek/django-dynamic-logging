@@ -120,6 +120,12 @@ STATICFILES_DIRS = [
 STATIC_ROOT = os.path.join(BASE_DIR, "static_root")
 
 
+def skip_static_requests(record):
+    if record.args[0].startswith('GET /static/'):  # filter whatever you want
+        return False
+    return True
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -142,6 +148,10 @@ LOGGING = {
         },
         'polite': {
             '()': 'testproject.filter.PoliteFilter'
+        },
+        'skip_static_requests': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': skip_static_requests
         }
     },
     'handlers': {

@@ -185,7 +185,7 @@ class Config(models.Model):
         config['handlers'] = self.merge_handlers(config.get('handlers', {}), self.config.get('handlers', {}))
         module_logger.info("[%s] applying logging config %s: %r" % (trigger, self, config))
         self._reset_logging()
-        module_logger.debug("applying config %s", json.dumps(config))
+        module_logger.debug("applying config %s", json.dumps(config, default=repr))
         # print("apply %s : %s " % (self.name, json.dumps(config)))
         logging.config.dictConfig(config)
         config_applied.send(self.__class__, config=self)

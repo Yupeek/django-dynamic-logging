@@ -54,7 +54,10 @@ class Propagator(object):
         """
         called each time a local config is changed
         """
-        self.propagate()
+        try:
+            self.propagate()
+        except Exception:
+            logger.exception("error while propagating new logging configuration")
 
     def propagate(self):
         """
@@ -160,16 +163,17 @@ class AmqpPropagator(Propagator):
     it require, in the settings, the url to use to connect.
     the name of the exchange to create can be given too. by default it will logging_propagator
 
-    >>> DYNAMIC_LOGGING = {
-    ...     "upgrade_propagator": {
-    ...         'class': "dynamic_logging.propagator.AmqpPropagator",
-    ...         'config': {
-    ...             'url': 'amqp://guest:guest@localhost:5672/%2F',
-    ...             'exchange_name': 'loger_propagator',
-    ...         },
-    ...         'on_error': 'raise',
-    ...     }
-    ... }
+
+    DYNAMIC_LOGGING = {
+         "upgrade_propagator": {
+             'class': "dynamic_logging.propagator.AmqpPropagator",
+             'config': {
+                 'url': 'amqp://guest:guest@localhost:5672/%2F',
+                 'exchange_name': 'loger_propagator',
+             },
+             'on_error': 'raise',
+         }
+     }
     """
 
     def __init__(self, conf):
@@ -201,7 +205,7 @@ class AmqpPropagator(Propagator):
         self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=channel.start_consuming)
         self.amqp_thread.daemon = True
         self.amqp_thread.start()
-        super(AmqpPropagator, self).setup()
+        super(AmqpPropagator, self).setup()  # setup signals handling
 
     def propagate(self):
         self.channel.basic_publish(
@@ -215,3 +219,4 @@ class AmqpPropagator(Propagator):
 
         self.amqp_thread = None
         self.connection = self.channel = self.exchange_name = None
+        super(AmqpPropagator, self).teardown()  # teardown signal handling
