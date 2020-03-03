@@ -211,6 +211,6 @@ class AmqpPropagator(Propagator):
         )
 
     def teardown(self):
-        self.connection.ioloop.stop()
+        self.connection._impl.ioloop.stop()
         self.amqp_thread = None
         self.connection = self.channel = self.exchange_name = None

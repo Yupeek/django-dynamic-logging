@@ -4,5 +4,6 @@ sphinx
 tox
 isort
 flake8
-pika
+pika==0.10
+django-debug-toolbar==1.7
 -r test_requirements.txt
