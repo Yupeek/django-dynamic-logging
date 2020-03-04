@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import functools
 import logging
 import operator
@@ -200,7 +198,6 @@ class AmqpPropagator(Propagator):
         def target():
 
             self.connection = pika.BlockingConnection(pika.URLParameters(url))
-            self.connection.add_callback_threadsafe(print)
             self.channel = channel = self.connection.channel()
             self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
             channel.exchange_declare(exchange=exchange_name,
