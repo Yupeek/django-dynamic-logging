@@ -6,7 +6,6 @@ import logging
 import operator
 import threading
 
-import pika
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import post_delete, post_save
 from django.utils import timezone
@@ -228,8 +227,6 @@ class AmqpPropagator(Propagator):
                 exchange=self.exchange_name,
                 routing_key='',
                 body='reload config trigered',
-                properties=pika.BasicProperties(content_type='text/plain',
-                                                type='noop')
             )
         )
 

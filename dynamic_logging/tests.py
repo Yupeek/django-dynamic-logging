@@ -327,7 +327,10 @@ class AmqpPropagatorTest(TestCase):
         self.assertTrue(called.wait(4))
         called.clear()
         self.assertEqual(np, [1, 1, 1])
-        channel.stop_consuming()
+        try:
+            channel.stop_consuming()
+        except Exception:
+            pass
         try:
             self.connection.close()
         except Exception:
