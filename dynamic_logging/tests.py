@@ -255,6 +255,20 @@ class AmqpPropagatorTest(TestCase):
         except pika.exceptions.ConnectionClosed:
             raise SkipTest("no rabbitmq running for %s" % amqp_url)
 
+    def test_propagate(self):
+        # this test try to run a temporary connection and check if the AmqpPropagator
+        # send a message wherever a Config/Trigger is created/updated
+
+        # all this threading stuff is ugly... i know
+        propagator = AmqpPropagator({'url': self.amqp_url, 'echange_name': 'my_test_exchange'})
+
+        def fake_reload(*args, **kwargs):
+            pass
+
+        propagator.reload_scheduler = fake_reload
+        propagator.setup()
+        propagator.propagate()
+
     def test_message_sent(self):
         # this test try to run a temporary connection and check if the AmqpPropagator
         # send a message wherever a Config/Trigger is created/updated

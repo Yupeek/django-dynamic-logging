@@ -5,6 +5,7 @@ import logging
 import operator
 import threading
 
+import pika
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models.signals import post_delete, post_save
 from django.utils import timezone
@@ -54,10 +55,7 @@ class Propagator(object):
         """
         called each time a local config is changed
         """
-        try:
-            self.propagate()
-        except Exception:
-            logger.exception("error while propagating new logging configuration")
+        self.propagate()
 
     def propagate(self):
         """
@@ -178,7 +176,13 @@ class AmqpPropagator(Propagator):
 
     def __init__(self, conf):
         super(AmqpPropagator, self).__init__(conf)
-        self.connection = self.channel = self.exchange_name = None
+        self.connection = None
+        self.channel = None
+        """
+        :type pika.adapters.blocking_connection.BlockingChannel
+        """
+
+        self.exchange_name = None
         self.amqp_thread = None
 
     def setup(self):
@@ -192,26 +196,35 @@ class AmqpPropagator(Propagator):
                                        "DYNAMIC_LOGGING['upgrade_propagator']['config']. please refer to the pika doc "
                                        "to build it : "
                                        "http://pika.readthedocs.io/en/0.10.0/examples/using_urlparameters.html")
-        self.connection = pika.BlockingConnection(pika.URLParameters(url))
-        self.channel = channel = self.connection.channel()
-        self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
-        channel.exchange_declare(exchange=exchange_name,
-                                 exchange_type='fanout')
-        queue = channel.queue_declare(queue='', exclusive=True)
-        queue_name = queue.method.queue
-        channel.queue_bind(exchange=exchange_name, queue=queue_name)
+        started = threading.Event()
+        def target():
 
-        channel.basic_consume(queue=queue_name, on_message_callback=self.reload_scheduler, auto_ack=True)
-        self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=channel.start_consuming)
+            self.connection = pika.BlockingConnection(pika.URLParameters(url))
+            self.channel = channel = self.connection.channel()
+            self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
+            channel.exchange_declare(exchange=exchange_name,
+                                     exchange_type='fanout')
+            queue = channel.queue_declare(queue='', exclusive=True)
+            queue_name = queue.method.queue
+            channel.queue_bind(exchange=exchange_name, queue=queue_name)
+
+            channel.basic_consume(queue=queue_name, on_message_callback=self.reload_scheduler, auto_ack=True)
+            channel.start_consuming()
+            started.set()
+
+        self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=target)
         self.amqp_thread.daemon = True
         self.amqp_thread.start()
+        started.wait(1)  # wait for channels and cies to be started
         super(AmqpPropagator, self).setup()  # setup signals handling
 
     def propagate(self):
         self.channel.basic_publish(
             exchange=self.exchange_name,
             routing_key='',
-            body='reload config trigered'
+            body='reload config trigered',
+            properties=pika.BasicProperties(content_type='text/plain',
+                                            type='noop')
         )
 
     def teardown(self):
