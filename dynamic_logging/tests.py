@@ -4,7 +4,7 @@ import doctest
 import json
 import logging.config
 import threading
-from unittest import skip
+import time
 from unittest.case import SkipTest
 
 from django.conf import settings
@@ -228,7 +228,7 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.current_trigger, t)
 
 
-@skip("cannot find a way to make the tests working in the same process")
+# @skip("cannot find a way to make the tests working in the same process")
 @override_settings(
     DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}}
 )
@@ -268,6 +268,8 @@ class AmqpPropagatorTest(TestCase):
         propagator.reload_scheduler = fake_reload
         propagator.setup()
         propagator.propagate()
+        time.sleep(1)
+        propagator.teardown()
 
     def test_message_sent(self):
         # this test try to run a temporary connection and check if the AmqpPropagator
@@ -295,9 +297,11 @@ class AmqpPropagatorTest(TestCase):
 
         def target():
             start.set()
-
-            while channel._consumer_infos:
-                channel.connection.process_data_events(time_limit=1)
+            try:
+                while channel._consumer_infos:
+                    channel.connection.process_data_events(time_limit=1)
+            except Exception:
+                pass  # don't care here
             ended.set()
 
         queue = channel.queue_declare('', exclusive=True)
@@ -324,7 +328,10 @@ class AmqpPropagatorTest(TestCase):
         called.clear()
         self.assertEqual(np, [1, 1, 1])
         channel.stop_consuming()
-        self.connection.close()
+        try:
+            self.connection.close()
+        except Exception:
+            pass
         self.assertTrue(ended.wait(4))
         propagator.teardown()
 

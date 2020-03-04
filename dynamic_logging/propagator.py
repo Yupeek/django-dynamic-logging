@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
+import functools
 import logging
 import operator
 import threading
@@ -200,6 +201,7 @@ class AmqpPropagator(Propagator):
         def target():
 
             self.connection = pika.BlockingConnection(pika.URLParameters(url))
+            self.connection.add_callback_threadsafe(print)
             self.channel = channel = self.connection.channel()
             self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
             channel.exchange_declare(exchange=exchange_name,
@@ -209,26 +211,32 @@ class AmqpPropagator(Propagator):
             channel.queue_bind(exchange=exchange_name, queue=queue_name)
 
             channel.basic_consume(queue=queue_name, on_message_callback=self.reload_scheduler, auto_ack=True)
-            channel.start_consuming()
             started.set()
+            channel.start_consuming()
 
         self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=target)
         self.amqp_thread.daemon = True
         self.amqp_thread.start()
-        started.wait(1)  # wait for channels and cies to be started
+        assert started.wait(1)  # wait for channels and cies to be started
         super(AmqpPropagator, self).setup()  # setup signals handling
 
     def propagate(self):
-        self.channel.basic_publish(
-            exchange=self.exchange_name,
-            routing_key='',
-            body='reload config trigered',
-            properties=pika.BasicProperties(content_type='text/plain',
-                                            type='noop')
+
+        self.connection.add_callback_threadsafe(
+            functools.partial(
+                self.channel.basic_publish,
+                exchange=self.exchange_name,
+                routing_key='',
+                body='reload config trigered',
+                properties=pika.BasicProperties(content_type='text/plain',
+                                                type='noop')
+            )
         )
 
     def teardown(self):
-        self.connection._impl.ioloop.stop()
+        self.connection.add_callback_threadsafe(
+            self.connection.close
+        )
 
         self.amqp_thread = None
         self.connection = self.channel = self.exchange_name = None
