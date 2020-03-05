@@ -9,6 +9,7 @@ from copy import deepcopy
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import CASCADE
 from django.db.models.query_utils import Q
 from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
@@ -55,7 +56,7 @@ class Trigger(models.Model):
     start_date = models.DateTimeField(default=timezone.now, blank=True, null=True)
     end_date = models.DateTimeField(default=now_plus_2hours, blank=True, null=True)
 
-    config = models.ForeignKey('Config', related_name='triggers')
+    config = models.ForeignKey('Config', related_name='triggers', on_delete=CASCADE)
     last_update = models.DateTimeField(auto_now=True)
 
     @classmethod
@@ -184,7 +185,7 @@ class Config(models.Model):
         config['handlers'] = self.merge_handlers(config.get('handlers', {}), self.config.get('handlers', {}))
         module_logger.info("[%s] applying logging config %s: %r" % (trigger, self, config))
         self._reset_logging()
-        module_logger.debug("applying config %s", json.dumps(config))
+        module_logger.debug("applying config %s", json.dumps(config, default=repr))
         # print("apply %s : %s " % (self.name, json.dumps(config)))
         logging.config.dictConfig(config)
         config_applied.send(self.__class__, config=self)

@@ -1,13 +1,17 @@
+from copy import deepcopy
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.urlresolvers import reverse
 from django.test import TestCase
 # Create your tests here.
 from django.test.utils import override_settings
+from django.urls.base import reverse
 
 from dynamic_logging.handlers import MockHandler
 from dynamic_logging.models import Config, Trigger
 from dynamic_logging.scheduler import main_scheduler
 from dynamic_logging.tests import now_plus
+from dynamic_logging.widgets import JsonLoggerWidget
 
 
 class TestPages(TestCase):
@@ -70,6 +74,13 @@ class TestAdminContent(TestCase):
     def tearDown(self):
         main_scheduler.reset()
 
+    def test_json_widget(self):
+        sentinel = deepcopy(settings.LOGGING['handlers'])
+        widget = JsonLoggerWidget()
+        merged = widget.merge_handlers_value({"loggers": {"blablabla": {"level": "ERROR",
+                                                          "handlers": ["console"], "propagate": True}}})
+        self.assertEqual(sentinel, merged)
+
     def test_logging_in_admin(self):
         response = self.client.get('/admin/')
         self.assertContains(response, 'Trigger')
@@ -112,11 +123,6 @@ class TestAdminContent(TestCase):
 
         response = self.client.get(reverse('admin:app_list', kwargs={'app_label': 'dynamic_logging'}))
         self.assertNotContains(response, 'blablabla')
-
-    def test_trigger_broken(self):
-        self.t.config_id = 99
-        self.t.save()
-        self.assertIn('<no config>', str(Trigger.objects.get(pk=self.t.pk)))
 
     def test_create_bad_config(self):
         res = self.client.post(reverse('admin:dynamic_logging_config_add'), data={

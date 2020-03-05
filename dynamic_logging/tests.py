@@ -4,6 +4,7 @@ import doctest
 import json
 import logging.config
 import threading
+import time
 from unittest.case import SkipTest
 
 from django.conf import settings
@@ -227,6 +228,7 @@ class TestSchedulerTimers(TestCase):
         self.assertEqual(main_scheduler.current_trigger, t)
 
 
+# @skip("cannot find a way to make the tests working in the same process")
 @override_settings(
     DYNAMIC_LOGGING={"upgrade_propagator": {'class': "dynamic_logging.propagator.DummyPropagator", 'config': {}}}
 )
@@ -252,6 +254,22 @@ class AmqpPropagatorTest(TestCase):
             self.connection = pika.BlockingConnection(pika.URLParameters(amqp_url))
         except pika.exceptions.ConnectionClosed:
             raise SkipTest("no rabbitmq running for %s" % amqp_url)
+
+    def test_propagate(self):
+        # this test try to run a temporary connection and check if the AmqpPropagator
+        # send a message wherever a Config/Trigger is created/updated
+
+        # all this threading stuff is ugly... i know
+        propagator = AmqpPropagator({'url': self.amqp_url, 'echange_name': 'my_test_exchange'})
+
+        def fake_reload(*args, **kwargs):
+            pass
+
+        propagator.reload_scheduler = fake_reload
+        propagator.setup()
+        propagator.propagate()
+        time.sleep(1)
+        propagator.teardown()
 
     def test_message_sent(self):
         # this test try to run a temporary connection and check if the AmqpPropagator
@@ -279,16 +297,18 @@ class AmqpPropagatorTest(TestCase):
 
         def target():
             start.set()
-
-            while channel._consumer_infos:
-                channel.connection.process_data_events(time_limit=1)
+            try:
+                while channel._consumer_infos:
+                    channel.connection.process_data_events(time_limit=1)
+            except Exception:
+                pass  # don't care here
             ended.set()
 
-        queue = channel.queue_declare(exclusive=True)
+        queue = channel.queue_declare('', exclusive=True)
         channel.queue_bind(exchange='my_test_exchange', queue=queue.method.queue, routing_key='')
-        channel.basic_consume(callback, queue=queue.method.queue)
+        channel.basic_consume(on_message_callback=callback, queue=queue.method.queue)
         self.assertEqual(np, [])
-        thr = threading.Thread(target=target)
+        thr = threading.Thread(target=target, name="message_reader")
         thr.daemon = True
         thr.start()
 
@@ -304,11 +324,17 @@ class AmqpPropagatorTest(TestCase):
         called.clear()
         self.assertEqual(np, [1, 1])
         Trigger.objects.create(name='lolilol', end_date=None, start_date=None, config=c)
-        self.assertTrue(called.wait(1))
+        self.assertTrue(called.wait(4))
         called.clear()
         self.assertEqual(np, [1, 1, 1])
-        channel.stop_consuming()
-        self.connection.close()
+        try:
+            channel.stop_consuming()
+        except Exception:
+            pass
+        try:
+            self.connection.close()
+        except Exception:
+            pass
         self.assertTrue(ended.wait(4))
         propagator.teardown()
 

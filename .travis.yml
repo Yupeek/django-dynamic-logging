@@ -1,45 +1,47 @@
-# We do not use sudo
 sudo: false
-
-# Python versions for matrix
 language: python
 python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-
-# Django versions for matrix
+- '3.5'
+- '3.6'
+- '3.7'
+services:
+- docker
+before_install:
+- docker run -d --rm -p 15672:15672 -p 5672:5672 -p 5671:5671 --name nameko-rabbitmq
+  nameko/nameko-rabbitmq:3.6.6
 env:
-  - DJANGO_VERSION='>=1.8,<1.9'
-  - DJANGO_VERSION='>=1.9,<1.10'
-  - DJANGO_VERSION='>=1.10,<1.11'
-
-# Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
+- DJANGO_VERSION='>=2.0,<2.1'
+- DJANGO_VERSION='>=2.1,<2.2'
+- DJANGO_VERSION='>=2.2,<2.3'
 install:
-  - pip install -q Django$DJANGO_VERSION
-  - pip install  python-coveralls
-  # virtualenv>=14.0.0 has dropped Python 3.2 support
-  - travis_retry pip install "virtualenv<14.0.0" "tox>=1.9"
-  - if [[ $TRAVIS_PYTHON_VERSION == '3.2' ]]; then travis_retry pip install 'coverage<4.0'; fi
-  - pip install -r requirements.txt
-
+- pip install -q Django$DJANGO_VERSION
+- pip install  python-coveralls
+- pip install "virtualenv" "tox>=1.9"
+- pip install -r requirements.txt
 before_script:
-  - isort --recursive --check-only --diff dynamic_logging testproject
-  - flake8 dynamic_logging testproject
-
-# Command to run tests, e.g. python setup.py test
+- isort --recursive --check-only --diff dynamic_logging testproject
+- flake8 dynamic_logging testproject
 script:
-  - coverage run --source=testproject,dynamic_logging manage.py test
-
-
-# Report to coveralls
-after_success:
-  - coveralls
-
-matrix:
-  exclude:
-    - python: "3.3"
-      env: DJANGO_VERSION='>=1.9,<1.10'
-    - python: "3.3"
-      env: DJANGO_VERSION='>=1.10,<1.11'
+- coverage run --source=testproject,dynamic_logging manage.py test
+jobs:
+  include:
+  - stage: test
+    after_success:
+    - coveralls
+  - stage: deploy
+    script: tox -e package
+    install: skip
+    before_install: []
+    python: '3.6'
+    on:
+      repo: Yupeek/django-dynamic-logging
+      tags: true
+    if: tag IS present
+    deploy:
+      provider: pypi
+      user: yupeek
+      password:
+        # to generate it : docker ruby + gem install gem install travis + travis encrypt --add deploy.password "<yourpypipassword>"  -r Yupeek/django-dynamic-logging
+        secure: JGDS80/UxQpJhO86uAZDbdgROCmNT0t92hgqdFRjDSpvg/CQkkLJQ/e78U1jVwrHQEvcy2jayFkRmixjns6OAGpABW05g7TSvCx04O9wX8ZKFoVyS2Nk7jAEhKRc+80qUKKlvNL2Ab3Dbt/X05fLIqfVrkDZZPSI10OkRa80xxkLXCK0jkPMPNmERhl7gbAnluneDrTMI00p77wL2RJ5pCY2vCOhjqOdIcVoGDT8Pwuyn3GaxhBfFvS/y0EqfF82o5r05ZNYynU9boCDRVQ/2ITs7O3MUD0QUXXG3DO+oCYD2bnNRvbzml6cQOhNXbljyU9Le5LzlRQtYMu6jWtevdNpD3uS5s5nasUsNQv3y7szDIYiXaiBHcW2fF9w9VhpFrg9sjIcqAmx1f7xKH4xDz+meKSF3nn6r6W9HLBfp9h4XPDtm4nTuI1olRwtsgvhSSYpCZXA7iuEqkI12rGLS8DI6We87yLIt9S8C9qWQnbDjEAp6LgEThvSJXOcYBkrAPI41czhhh4kcT7J1PAX5GtZZW6V2PKEeaYx2SGpq6EoqGT+NqFeD76JIDaSnau2913cmElf93Zb4fnC9F1qh9ijv1bFL9sTVIdZzEf4piP34MUPQf9I2Z34DjTXHEmtUAsEPFF/tZIdm2ekVN38m7rMdoQydn1ulGRD6krzBhM=
+      distributions: sdist bdist_wheel
+      skip_existing: true

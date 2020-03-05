@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
+import functools
 import logging
 import operator
 import threading
@@ -160,21 +159,28 @@ class AmqpPropagator(Propagator):
     it require, in the settings, the url to use to connect.
     the name of the exchange to create can be given too. by default it will logging_propagator
 
-    >>> DYNAMIC_LOGGING = {
-    ...     "upgrade_propagator": {
-    ...         'class': "dynamic_logging.propagator.AmqpPropagator",
-    ...         'config': {
-    ...             'url': 'amqp://guest:guest@localhost:5672/%2F',
-    ...             'exchange_name': 'loger_propagator',
-    ...         },
-    ...         'on_error': 'raise',
-    ...     }
-    ... }
+
+    DYNAMIC_LOGGING = {
+         "upgrade_propagator": {
+             'class': "dynamic_logging.propagator.AmqpPropagator",
+             'config': {
+                 'url': 'amqp://guest:guest@localhost:5672/%2F',
+                 'exchange_name': 'loger_propagator',
+             },
+             'on_error': 'raise',
+         }
+     }
     """
 
     def __init__(self, conf):
         super(AmqpPropagator, self).__init__(conf)
-        self.connection = self.channel = self.exchange_name = None
+        self.connection = None
+        self.channel = None
+        """
+        :type pika.adapters.blocking_connection.BlockingChannel
+        """
+
+        self.exchange_name = None
         self.amqp_thread = None
 
     def setup(self):
@@ -188,29 +194,44 @@ class AmqpPropagator(Propagator):
                                        "DYNAMIC_LOGGING['upgrade_propagator']['config']. please refer to the pika doc "
                                        "to build it : "
                                        "http://pika.readthedocs.io/en/0.10.0/examples/using_urlparameters.html")
-        self.connection = pika.BlockingConnection(pika.URLParameters(url))
-        self.channel = channel = self.connection.channel()
-        self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
-        channel.exchange_declare(exchange=exchange_name,
-                                 type='fanout')
-        queue = channel.queue_declare(exclusive=True)
-        queue_name = queue.method.queue
-        channel.queue_bind(exchange=exchange_name, queue=queue_name)
+        started = threading.Event()
+        def target():
 
-        channel.basic_consume(self.reload_scheduler, queue=queue_name, no_ack=True)
-        self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=channel.start_consuming)
+            self.connection = pika.BlockingConnection(pika.URLParameters(url))
+            self.channel = channel = self.connection.channel()
+            self.exchange_name = exchange_name = self.conf.get('echange_name', 'logging_propagator')
+            channel.exchange_declare(exchange=exchange_name,
+                                     exchange_type='fanout')
+            queue = channel.queue_declare(queue='', exclusive=True)
+            queue_name = queue.method.queue
+            channel.queue_bind(exchange=exchange_name, queue=queue_name)
+
+            channel.basic_consume(queue=queue_name, on_message_callback=self.reload_scheduler, auto_ack=True)
+            started.set()
+            channel.start_consuming()
+
+        self.amqp_thread = threading.Thread(name='AmqpPropagator Listener', target=target)
         self.amqp_thread.daemon = True
         self.amqp_thread.start()
-        super(AmqpPropagator, self).setup()
+        assert started.wait(1)  # wait for channels and cies to be started
+        super(AmqpPropagator, self).setup()  # setup signals handling
 
     def propagate(self):
-        self.channel.basic_publish(
-            exchange=self.exchange_name,
-            routing_key='',
-            body='reload config trigered'
+
+        self.connection.add_callback_threadsafe(
+            functools.partial(
+                self.channel.basic_publish,
+                exchange=self.exchange_name,
+                routing_key='',
+                body='reload config trigered',
+            )
         )
 
     def teardown(self):
-        self.connection.ioloop.stop()
+        self.connection.add_callback_threadsafe(
+            self.connection.close
+        )
+
         self.amqp_thread = None
         self.connection = self.channel = self.exchange_name = None
+        super(AmqpPropagator, self).teardown()  # teardown signal handling

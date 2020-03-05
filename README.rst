@@ -109,7 +109,7 @@ the supported versions is the same as current django
 configuration in sources
 ------------------------
 
-1. add `dynamic-logging` to your INSTALLED_APPS
+1. add `dynamic_logging` to your INSTALLED_APPS
 
 and that's all
 

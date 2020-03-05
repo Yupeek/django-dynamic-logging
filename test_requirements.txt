@@ -1,3 +1,4 @@
 teamcity-messages
 pytz
-django-debug-toolbar
+django-debug-toolbar==2.2
+six

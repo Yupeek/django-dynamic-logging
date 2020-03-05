@@ -1,8 +1,9 @@
-Django<1.11
+django<2.3
 wheel
 sphinx
 tox
 isort
 flake8
-pika
+pika==1.1.0
+django-debug-toolbar==2.2
 -r test_requirements.txt

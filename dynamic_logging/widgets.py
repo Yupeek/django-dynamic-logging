@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import json
 import logging
 from collections import OrderedDict
@@ -31,11 +29,11 @@ class JsonLoggerWidget(Textarea):
         """
         res = deepcopy(settings.LOGGING['handlers'])
         for name, handler in res.items():
-            handler.update({k: v for k, v in current_val[name].items() if k in ('filters', 'level')})
+            handler.update({k: v for k, v in current_val.get(name, {}).items() if k in ('filters', 'level')})
         res = OrderedDict(sorted(res.items()))
         return res
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         attrs = attrs or {}
         try:
             data = json.loads(value)

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import functools
 import logging
 import threading
 
+from django.db.utils import ProgrammingError
 from django.utils import timezone
 
 from dynamic_logging.models import Trigger
@@ -87,6 +86,8 @@ class Scheduler(object):
         except Trigger.DoesNotExist:
             # no next trigger
             next_trigger = None  # type: Trigger
+        except ProgrammingError:
+            next_trigger = None
 
         # boolean opperation is
         # w = current trigger is null
@@ -167,6 +168,10 @@ class Scheduler(object):
         try:
             t = Trigger.objects.filter(is_active=True).valid_at(timezone.now()).latest('start_date')
         except Trigger.DoesNotExist:
+            self.apply(Trigger.default())
+            return None
+        except ProgrammingError:
+            logger.info('the django-dynamic-logging tables don\'t exists: fall back to normal logging')
             self.apply(Trigger.default())
             return None
         try:
