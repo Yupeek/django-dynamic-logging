@@ -11,7 +11,6 @@ env:
 - DJANGO_VERSION='>=2.0,<2.1'
 - DJANGO_VERSION='>=2.1,<2.2'
 - DJANGO_VERSION='>=2.2,<2.3'
--
 
 before_install:
 - docker run -d --rm -p 15672:15672 -p 5672:5672 -p 5671:5671 --name nameko-rabbitmq
