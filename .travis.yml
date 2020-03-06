@@ -41,9 +41,10 @@ jobs:
     on:
       repo: Yupeek/django-dynamic-logging
       tags: true
-      all_branches: true
     if: tag IS present
     deploy:
+      on:
+        all_branches: true
       provider: pypi
       user: yupeek
       password:
