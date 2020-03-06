@@ -1,39 +1,43 @@
 sudo: false
 language: python
-
 services:
 - docker
+python:
+- '3.5'
+- '3.6'
+- '3.7'
+
+env:
+- DJANGO_VERSION='>=2.0,<2.1'
+- DJANGO_VERSION='>=2.1,<2.2'
+- DJANGO_VERSION='>=2.2,<2.3'
+-
+
+before_install:
+- docker run -d --rm -p 15672:15672 -p 5672:5672 -p 5671:5671 --name nameko-rabbitmq
+  nameko/nameko-rabbitmq:3.6.6
+install:
+- pip install -q Django$DJANGO_VERSION
+- pip install  python-coveralls
+- pip install "virtualenv" "tox>=1.9"
+- pip install -r requirements.txt
+before_script:
+- isort --recursive --check-only --diff dynamic_logging testproject
+- flake8 dynamic_logging testproject
+script:
+- coverage run --source=testproject,dynamic_logging manage.py test
+after_success:
+- coveralls
 
 jobs:
   include:
   - stage: test
-    env:
-    - DJANGO_VERSION='>=2.0,<2.1'
-    - DJANGO_VERSION='>=2.1,<2.2'
-    - DJANGO_VERSION='>=2.2,<2.3'
-    python:
-    - '3.5'
-    - '3.6'
-    - '3.7'
-    before_install:
-    - docker run -d --rm -p 15672:15672 -p 5672:5672 -p 5671:5671 --name nameko-rabbitmq
-      nameko/nameko-rabbitmq:3.6.6
-    install:
-      - pip install -q Django$DJANGO_VERSION
-      - pip install  python-coveralls
-      - pip install "virtualenv" "tox>=1.9"
-      - pip install -r requirements.txt
-    before_script:
-    - isort --recursive --check-only --diff dynamic_logging testproject
-    - flake8 dynamic_logging testproject
-    script:
-    - coverage run --source=testproject,dynamic_logging manage.py test
-    after_success:
-    - coveralls
   - stage: deploy
     script: tox -e package
     install: skip
     before_install: []
+    before_script: []
+    after_success: []
     python: '3.6'
     on:
       repo: Yupeek/django-dynamic-logging
