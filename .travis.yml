@@ -15,7 +15,8 @@ install:
 - pip install  python-coveralls
 - pip install "virtualenv" "tox>=1.9"
 - pip install -r requirements.txt
-
+script:
+- coverage run --source=testproject,dynamic_logging manage.py test
 jobs:
   include:
   - stage: test
@@ -25,8 +26,7 @@ jobs:
     before_script:
     - isort --recursive --check-only --diff dynamic_logging testproject
     - flake8 dynamic_logging testproject
-    script:
-    - coverage run --source=testproject,dynamic_logging manage.py test
+
     after_success:
     - coveralls
   - stage: deploy
