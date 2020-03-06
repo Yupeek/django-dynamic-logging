@@ -6,12 +6,10 @@ python:
 - '3.5'
 - '3.6'
 - '3.7'
-
 env:
 - DJANGO_VERSION='>=2.0,<2.1'
 - DJANGO_VERSION='>=2.1,<2.2'
 - DJANGO_VERSION='>=2.2,<2.3'
-
 before_install:
 - docker run -d --rm -p 15672:15672 -p 5672:5672 -p 5671:5671 --name nameko-rabbitmq
   nameko/nameko-rabbitmq:3.6.6
@@ -27,7 +25,6 @@ script:
 - coverage run --source=testproject,dynamic_logging manage.py test
 after_success:
 - coveralls
-
 jobs:
   include:
   - stage: deploy
@@ -46,9 +43,8 @@ jobs:
       on:
         all_branches: true
       provider: pypi
-      user: yupeek
+      user: __token__
       password:
-        # to generate it : docker ruby + gem install gem install travis + travis encrypt --add deploy.password "<yourpypipassword>"  -r Yupeek/django-dynamic-logging
-        secure: JGDS80/UxQpJhO86uAZDbdgROCmNT0t92hgqdFRjDSpvg/CQkkLJQ/e78U1jVwrHQEvcy2jayFkRmixjns6OAGpABW05g7TSvCx04O9wX8ZKFoVyS2Nk7jAEhKRc+80qUKKlvNL2Ab3Dbt/X05fLIqfVrkDZZPSI10OkRa80xxkLXCK0jkPMPNmERhl7gbAnluneDrTMI00p77wL2RJ5pCY2vCOhjqOdIcVoGDT8Pwuyn3GaxhBfFvS/y0EqfF82o5r05ZNYynU9boCDRVQ/2ITs7O3MUD0QUXXG3DO+oCYD2bnNRvbzml6cQOhNXbljyU9Le5LzlRQtYMu6jWtevdNpD3uS5s5nasUsNQv3y7szDIYiXaiBHcW2fF9w9VhpFrg9sjIcqAmx1f7xKH4xDz+meKSF3nn6r6W9HLBfp9h4XPDtm4nTuI1olRwtsgvhSSYpCZXA7iuEqkI12rGLS8DI6We87yLIt9S8C9qWQnbDjEAp6LgEThvSJXOcYBkrAPI41czhhh4kcT7J1PAX5GtZZW6V2PKEeaYx2SGpq6EoqGT+NqFeD76JIDaSnau2913cmElf93Zb4fnC9F1qh9ijv1bFL9sTVIdZzEf4piP34MUPQf9I2Z34DjTXHEmtUAsEPFF/tZIdm2ekVN38m7rMdoQydn1ulGRD6krzBhM=
+        secure: hO6ry+RLahQPAxjeWpWb2HnUieSoW245QtrxilgHPZDINXKs/yGy95M4RLsDHjMSW6fC1jPwPQ5CswYd0ZIdrMRKpkZgiOAC0vj+PbCP2fSQa9JjpCMxv16nas4xwmIZmEUtiFQ9yQh6SErlZLjTe6RQsDB6l0Q2oETzPaq/DOpXUMJfyjsvrFloC3aRzPWtLmuOiunJjzETC1ttm1zf6AlPGmSML4r28s6p+pzs0Qzob5kHC0TvcsUwBhRMM2eUwxHX2cE2piPXHTReaVPxijm/EuuPHFSCPxMZQ9/PmN56BopLRdX3hyzKSYKx0Cqz+g6A6F/iwS/8FdtLqCADETibfGQvpn63NcDBGqZHVDEdny/UtTINTEe2BW/5o6G9TlU1+VlzBXZs97P7Upk5ejHJNU+60n8B7wMhOvhrVs+x+xvKT3DSv0LORaF/p5q9PQUbHRfaW+UrCBYP0TINEsdkarxgwdbwVhNpES9s4qdqn6Obyr2ZfQdYnhycju7pVG6IXtYMVJWcTXcbgeVbi1SH2x8tymlYvn+4EIJSANPitktrBfXgiN+grw+mxPNYrDSvtTWjFhsyr8TYsgeeH65rKJojjfpXxPVcfOcFO6x6/+tldLBauougCfCddIlPxdgLBXaRI9fW1uf8m4vGffEtMBULNPyA+9UJJcEJQww=
       distributions: sdist bdist_wheel
       skip_existing: true
