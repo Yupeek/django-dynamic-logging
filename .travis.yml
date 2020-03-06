@@ -45,6 +45,7 @@ jobs:
     deploy:
       provider: pypi
       user: yupeek
+      all_branches: true
       password:
         # to generate it : docker ruby + gem install gem install travis + travis encrypt --add deploy.password "<yourpypipassword>"  -r Yupeek/django-dynamic-logging
         secure: JGDS80/UxQpJhO86uAZDbdgROCmNT0t92hgqdFRjDSpvg/CQkkLJQ/e78U1jVwrHQEvcy2jayFkRmixjns6OAGpABW05g7TSvCx04O9wX8ZKFoVyS2Nk7jAEhKRc+80qUKKlvNL2Ab3Dbt/X05fLIqfVrkDZZPSI10OkRa80xxkLXCK0jkPMPNmERhl7gbAnluneDrTMI00p77wL2RJ5pCY2vCOhjqOdIcVoGDT8Pwuyn3GaxhBfFvS/y0EqfF82o5r05ZNYynU9boCDRVQ/2ITs7O3MUD0QUXXG3DO+oCYD2bnNRvbzml6cQOhNXbljyU9Le5LzlRQtYMu6jWtevdNpD3uS5s5nasUsNQv3y7szDIYiXaiBHcW2fF9w9VhpFrg9sjIcqAmx1f7xKH4xDz+meKSF3nn6r6W9HLBfp9h4XPDtm4nTuI1olRwtsgvhSSYpCZXA7iuEqkI12rGLS8DI6We87yLIt9S8C9qWQnbDjEAp6LgEThvSJXOcYBkrAPI41czhhh4kcT7J1PAX5GtZZW6V2PKEeaYx2SGpq6EoqGT+NqFeD76JIDaSnau2913cmElf93Zb4fnC9F1qh9ijv1bFL9sTVIdZzEf4piP34MUPQf9I2Z34DjTXHEmtUAsEPFF/tZIdm2ekVN38m7rMdoQydn1ulGRD6krzBhM=
