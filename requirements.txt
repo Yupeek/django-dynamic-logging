@@ -5,5 +5,5 @@ tox
 isort
 flake8
 pika==1.1.0
-django-debug-toolbar==2.2
+django-debug-toolbar==2.2.1
 -r test_requirements.txt
